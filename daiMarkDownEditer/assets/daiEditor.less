@@ -1,0 +1,358 @@
+* {
+  padding: 0;
+  margin: 0;
+}
+html,
+body {
+  height: 100%;
+}
+#daiEditor {
+  position: relative;
+  height: 100%;
+}
+.control_nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  width: 100%;
+  padding-left: 15px;
+  background-color: #e8e8e8;
+  box-sizing: border-box;
+  .control_nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 15px;
+    transition: all .1s linear;
+    z-index: 200;
+    &:hover {
+      background-color: #d8d8d8;
+      transform: scale(1.2);
+      .title_steps,
+      .icon_title {
+        visibility: visible;
+        transform: scale(1);
+      }
+    }
+    button {
+      outline: none;
+      background-color: transparent;
+      border: 0;
+      color: #555;
+      cursor: pointer;
+      .biggerIcon {
+        font-size: 18px;
+      }
+    }
+    .title_steps,
+    .icon_title {
+      position: absolute;
+      top: 20px;
+      left: 15px;
+      width: auto;
+      padding: 2px 5px;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #666;
+      z-index: inherit;
+      visibility: hidden;
+    }
+    .icon_title {
+      writing-mode: vertical-lr;
+    }
+    .title_steps {
+      top: 15px;
+      left: 15px;
+      width: 25px;
+      text-align: center;
+      list-style: none;
+      li {
+        margin-bottom: 2px;
+        cursor: pointer;
+        &:hover {
+          background-color: #d8d8d8;
+        }
+      }
+    }
+  }
+}
+.editor_box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  padding-top: 40px;
+  box-sizing: border-box;
+}
+.markDown_box {
+  margin-left: -5px;
+  flex: 1;
+}
+.markDown_content,
+.textEditer_content {
+  width: 50%;
+  height: 100%;
+  padding: 10px;
+  border: 5px solid #d4d4d4;
+  border-radius: 3px;
+  box-sizing: border-box;
+  outline: none;
+  overflow-y: scroll;
+  color: #333;
+  &::after {
+    display: block;
+    content: '';
+    height: 450px;
+    width: 100%;
+  }
+  &::-webkit-scrollbar {/*滚动条整体样式*/
+    width: 10px; /*高宽分别对应横竖滚动条的尺寸*/
+    height: 10px;
+  }
+  &::-webkit-scrollbar-thumb {/*滚动条里面小方块*/
+    width: 10px;
+    border-radius: 10px;
+    border: 1px #fff solid;
+    background: #cacaca;
+  }
+  &::-webkit-scrollbar-track{/*滚动条里面轨道*/
+    border-radius: 10px;
+    background: #fff;
+  }
+  div {
+    line-height: 24px;
+  }
+  singlecode {
+    display: inline-block;
+    background-color: #cacaca;
+  }
+  multiplecode {
+    display: block;
+    background-color: #cacaca;
+  }
+  .codeBlock {
+    background-color: #cacaca;
+  }
+}
+.textEditer_content {
+  a {
+    color: #1482af;
+    cursor: pointer;
+  }
+}
+.textEditer_emptyContent {
+  &::before {
+    display: inline-block;
+    content: '';
+    height: 21px;
+    width: 1px;
+    background-color: #333;
+    vertical-align: bottom;
+    animation: shinningCursor 1s infinite;
+  }
+}
+.markDown_content {
+  flex: 1;
+  margin-left: -5px;
+  word-wrap:break-word;
+}
+.dialogBox_hidden {
+  display: none;
+}
+#dialog_mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  // background-color: rgba(0,0,0,.4);
+  z-index: 201;
+  .dialogBox_show {
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translate(-50%, 200px);
+    display: flex;
+    flex-wrap: wrap;
+    width: 450px;
+    padding: 0px 20px 75px;
+    background-color: #fff;
+    border: 10px solid #dedede;
+    border-radius: 5px;
+    z-index: 202;
+    color: #555;
+    animation: slideDownDialog .2s ease-out;
+    .dialogInput_item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      .dialogInput_title {
+        width: 120px;
+        padding-right: 10px;
+        text-align: right;
+      }
+      .dialogInput {
+        height: 30px;
+        width: 220px;
+        padding-left: 10px;
+      }
+      .required {
+        &::before {
+          display: inline-block;
+          content: '*';
+          color: red;
+          margin-right: 3px;
+        }
+      }
+    }
+    .dialogInput_item-hidden {
+      display: none;
+    }
+    #item_tagsInput {
+      flex-wrap: wrap;
+      p {
+        width: 100%;
+        padding-left: 50px;
+        margin-bottom: 5px;
+        font-size: 14px;
+        color: #f14343
+      }
+    }
+    .diaLogHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      height: 40px;
+      margin-bottom: 20px;
+      padding-left: 10px;
+      border-bottom: 1px solid #eee;
+      #diaLogCloseBtn {
+        border: 0;
+        outline: none;
+        background-color: transparent;
+        cursor: pointer;
+        color: #555;
+      }
+    }
+    .dialogBtn {
+      position: absolute;
+      right: 55px;
+      bottom: 20px;
+      width: 60px;
+      height: 30px;
+      outline: none;
+      border: 0;
+      border-radius: 2px;
+      color: #fff;
+      background-color: #22a5a5;
+      cursor: pointer;
+    }
+  }
+}
+.msgMask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 205;
+  .msgBox {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 380px;
+    height: 40px;
+    padding-left: 20px;  
+    color: #F56C6C; 
+    font-size: 14px;
+    background-color: #fef0f0;
+    border-color: #fde2e2;
+    line-height: 40px;
+    border-radius: 5px;
+    animation: slideDownMsg .2s ease-out;
+    span {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      margin-right: 8px;
+      line-height: 20px;
+      background-color: #F56C6C;
+      color: #fef0f0;
+      text-align: center;
+      border-radius: 50%;
+    }
+  }
+}
+.hiddenBox {
+  display: none;
+}
+@keyframes slideDownDialog {
+  0% {
+    transform: translate(-50%, 150px);
+    background-color: transparent;
+    border-color: transparent;
+    color: transparent;
+  }
+  100% {
+    transform: translate(-50%, 200px);
+    background-color: #fff;
+    border-color: #dedede;
+    color: #555;
+  }
+}
+@keyframes slideUpDialog {
+  0% {
+    transform: translate(-50%, 200px);
+    background-color: #fff;
+    border-color: #dedede;
+    color: #555;
+  }
+  100% {
+    transform: translate(-50%, 150px);
+    background-color: transparent;
+    border-color: transparent;
+    color: transparent;
+  }
+}
+@keyframes slideDownMsg {
+  0% {
+    top: 5px;
+    background-color: transparent;
+    border-color: transparent;
+  }
+  100% {
+    top: 30px;
+    background-color: #fef0f0;
+    border-color: #fde2e2;
+  }
+}
+@keyframes slideUpMsg {
+  0% {
+    top: 30px;
+    background-color: #fef0f0;
+    border-color: #fde2e2;
+  }
+  100% {
+    top: 5px;
+    background-color: transparent;
+    border-color: transparent;
+  }
+}
+@keyframes shinningCursor {
+  0% {
+    background-color: #333;
+  }
+  100% {
+    background-color: #fff;
+  }
+}

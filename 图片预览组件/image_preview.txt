@@ -1,0 +1,37 @@
+图片预览组件：
+   基于vue，css3封装的图片预览组件
+
+使用方法
+html:
+<!-- 图片预览组件 -->
+    <image-previewer 
+    v-if="previewPicFlag" 
+    :imgPreviewConfig="imgPreviewConfig"
+    :baseUrl="commonShowImgBaseUrl"
+    @closePreview="closePreview">
+    </image-previewer>
+
+script:
+// 引入组件
+import ImagePreviewer from '@/mypreview.vue'
+components: {
+    ImagePreviewer
+  },
+data() {
+    return {
+      previewPicFlag: false, // 图片预览显示布尔值
+      commonShowImgBaseUrl: '', // 默认的图片基础地址
+      imgPreviewConfig: { // 图片预览组件配置
+        imageKeys: [],  //  图片链接数组 / 必传
+        currentIndex: 0, // 图片预览的当前索引号 / 可不传
+        imageContent: [] // 图片对应标题的数组 / 可不传
+      }
+    }
+  }，
+methods: {
+   // 监听图片预览组件的传值 关闭图片预览
+    closePreview(flag) {
+      this.previewPicFlag = flag
+    }
+  }
+  
