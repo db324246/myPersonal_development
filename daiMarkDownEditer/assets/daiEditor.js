@@ -314,6 +314,7 @@
     }
   }
 
+  // 编辑内容全选
   DaiEditor.prototype.chooseAllZText = function() {
     const selection = window.getSelection();
     selection.removeAllRanges();
@@ -516,7 +517,6 @@
   // 储存光标选区位置
   DaiEditor.prototype.saveMousePosition = function(type) {
     const selection = window.getSelection()
-    console.log(selection.getRangeAt(0))
     if (selection.type === 'None') return this.alertMessage('请选择位置进行此操作')
     this.selectionType = selection.type
 
