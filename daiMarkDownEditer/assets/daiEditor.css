@@ -279,10 +279,7 @@ body {
   width: 380px;
   height: 40px;
   padding-left: 20px;
-  color: #F56C6C;
   font-size: 14px;
-  background-color: #fef0f0;
-  border-color: #fde2e2;
   line-height: 40px;
   border-radius: 5px;
   animation: slideDownMsg 0.2s ease-out;
@@ -293,8 +290,6 @@ body {
   height: 18px;
   margin-right: 8px;
   line-height: 20px;
-  background-color: #F56C6C;
-  color: #fef0f0;
   text-align: center;
   border-radius: 50%;
 }

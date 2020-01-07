@@ -70,11 +70,13 @@
       this.diaLog = this.tableEditor.querySelector('#dialog_box');
       this.diaLogTitle = this.tableEditor.querySelector('#diaLogTitle');
       this.input_fileName = this.tableEditor.querySelector('#input_fileName');
+      this.input_codeStyle = this.tableEditor.querySelector('#input_codeStyle');
       this.input_tags = this.tableEditor.querySelector('#input_tags');
       this.input_url = this.tableEditor.querySelector('#input_url');
       this.input_title = this.tableEditor.querySelector('#input_title');
       this.input_alt = this.tableEditor.querySelector('#input_alt');
       this.item_fileInput = this.tableEditor.querySelector('#item_fileInput');
+      this.item_codeInput = this.tableEditor.querySelector('#item_codeInput');
       this.item_tagsInput = this.tableEditor.querySelector('#item_tagsInput');
       this.item_urlInput = this.tableEditor.querySelector('#item_urlInput');
       this.item_altInput = this.tableEditor.querySelector('#item_altInput');
@@ -96,7 +98,7 @@
       this.diaLog.addEventListener('click', function(e) {
         e.stopPropagation()
       })
-      // 对话框 确认按钮 插入图片或超链
+      // 对话框 确认按钮 插入图片、超链、代码块、markdown文件名
       this.diaLogBtn.addEventListener('click', function() {
         if (_this.diaLogType === 'file') {
           const fileName = _this.input_fileName.value;
@@ -108,6 +110,29 @@
           const value = header + _this.markDown.innerText;
 
           _this.download(fileName + '.md', value);
+        } else if (_this.diaLogType === 'code') {
+          if (_this.mousesPosition.length === 0) return _this.alertMessage('光标位置存储失败')
+          
+          const codeStyle = _this.input_codeStyle.value;
+          if (codeStyle === '') return _this.alertMessage('语言不能为空')
+
+          _this.setMousePosition()
+          const selectObj = _this.getSelectionString();
+          const selecter = selectObj.selecter;
+          
+          if (!selecter) {        
+            _this.closeDialog((_this))
+            return _this.alertMessage('请选取内容进行此操作')
+          }
+          
+          const string = `<multiplecode type=${codeStyle}>` + selecter + '</multiplecode><br>';
+        
+          const content = _this.textEditer.innerHTML;
+          if (content.indexOf(string) !== -1) {
+            _this.textEditer.innerHTML = content.replace(string, selecter);
+          } else {
+            document.execCommand('insertHtml', false, string)
+          }
         } else {
           if (_this.mousesPosition.length === 0) return _this.alertMessage('光标位置存储失败')
   
@@ -117,7 +142,7 @@
           if (_this.diaLogType === 'img') {
             const alt = _this.input_url.value;
             if (alt === '') return _this.alertMessage('alt不能为空')
-          }
+          }  
   
           _this.setMousePosition()
           _this.setInsertObject('assignment')
@@ -243,7 +268,8 @@
         this.chooseAllZText()
         break
       case 'copy':
-        document.execCommand('copy', false, null)
+        document.execCommand('copy', false, null);
+        this.alertMessage('复制成功', 'success');
         break
       case 'delete':
         document.execCommand('delete', false, null)
@@ -278,10 +304,10 @@
         document.execCommand('insertHorizontalRule', false, null)
         break
       case 'multiplecode':
-        this.insertCodeBlock('multiple')
+        this.saveMousePosition('code')
         break
       case 'singlecode':
-        this.insertCodeBlock('single')
+        this.insertCodeBlock()
         break
       case 'putImg':
         this.saveMousePosition('img')
@@ -364,19 +390,14 @@
     else return {}
   }
 
-  // 创建代码块
-  DaiEditor.prototype.insertCodeBlock = function(type) {
+  // 创建行内代码块
+  DaiEditor.prototype.insertCodeBlock = function() {
     const selectObj = this.getSelectionString();
     const selecter = selectObj.selecter;
     
     if (!selecter) return this.alertMessage('请选取内容进行此操作')
 
-    let string = '';
-    if (type === 'single') {
-      string = '&nbsp;<singlecode>' + selecter + '</singlecode>&nbsp;';
-    } else if (type === 'multiple') {
-      string = `<multiplecode>` + selecter + '</multiplecode><br>';
-    }
+    let string = '&nbsp;<singlecode>' + selecter + '</singlecode>&nbsp;';
 
     const content = this.textEditer.innerHTML;
     if (content.indexOf(string) !== -1) {
@@ -500,6 +521,15 @@
 
             aString += ') '
             _string = string.replace(item, aString);
+          })
+        }
+        else if (key === '<multiplecode') {
+          const codeArr = string.match(/<multiplecode.*?>/ig);
+
+          codeArr.forEach(item => {
+            const type = item.split('"')[1];
+            const text = '<div class="codeBlock"><div>``` ' + type + '</div>';
+            _string = string.replace(item, text);
           })
         }
         else _string = string.replace(this.regList[key].reg, this.regList[key].text)
@@ -626,6 +656,9 @@
       this.diaLogTitle.innerHTML = 'md文件名';
       this.item_fileInput.className = 'dialogInput_item';
       this.item_tagsInput.className = 'dialogInput_item';
+    } else if (type === 'code') {
+      this.diaLogTitle.innerHTML = '代码类型';
+      this.item_codeInput.className = 'dialogInput_item';
     }
     
     this.diaLogMask.className = '';
@@ -641,10 +674,15 @@
       _this.input_url.value = '';
       _this.input_title.value = '';
       _this.input_alt.value = '';
+      _this.input_fileName.value = '';
+      _this.input_codeStyle.value = '';
+      _this.input_tags.value = '';
       _this.setInsertObject('empty')
       _this.mousesPosition = [];
       _this.diaLogMask.className = 'dialogBox_hidden';
       _this.item_fileInput.className = 'dialogInput_item-hidden';
+      _this.item_tagsInput.className = 'dialogInput_item-hidden';
+      _this.item_codeInput.className = 'dialogInput_item-hidden';
       _this.item_urlInput.className = 'dialogInput_item-hidden';
       _this.item_altInput.className = 'dialogInput_item-hidden';
       _this.item_titleInput.className = 'dialogInput_item-hidden';
@@ -666,16 +704,40 @@
   }
 
   // 弹出提示信息
-  DaiEditor.prototype.alertMessage = function(msg) {
+  DaiEditor.prototype.alertMessage = function(msg, type) {
     const msgMask = document.createElement('div');
     const msgBox = document.createElement('div');
+    const msgLogo = document.createElement('span');
     msgMask.className = 'msgMask';
     msgBox.className = 'msgBox';
     msgMask.appendChild(msgBox);
+    msgBox.appendChild(msgLogo);
+
+    const _type = type || 'danger';
+    switch (_type) {
+      case 'danger':
+        msgBox.style.backgroundColor = '#fef0f0';
+        msgBox.style.borderColor = '#fde2e2';
+        msgBox.style.color = '#F56C6C';
+        msgLogo.style.backgroundColor = '#F56C6C';
+        msgLogo.style.color = '#fef0f0';
+        msgLogo.innerHTML = '!';
+        break;
+      case 'success':
+        msgBox.style.backgroundColor = '#f0f9eb';
+        msgBox.style.borderColor = '#e1f3d8';
+        msgBox.style.color = '#67c23a';
+        msgLogo.style.backgroundColor = '#67c23a';
+        msgLogo.style.color = '#f0f9eb';
+        msgLogo.innerHTML = '✓';
+        break;
+      default:
+        break;
+    }
+    msgBox.innerHTML += msg;
     
     this.tableEditor.appendChild(msgMask);
 
-    msgBox.innerHTML = `<span>!</span>${msg}`;
 
     setTimeout(() => {
       msgBox.style.animation = 'slideUpMsg .2s ease-out';
@@ -710,10 +772,6 @@
     '<hr id="null">': {
       reg: /<hr id="null">/ig,
       text: '<br>---<br>'
-    },
-    '<multiplecode>': {
-      reg: /<multiplecode>/ig,
-      text: '<div class="codeBlock"><div>```</div>'
     },
     '</multiplecode>': {
       reg: /<\/multiplecode>/ig,
@@ -792,7 +850,8 @@
       text: '</div>'
     },
     '<img': {},
-    '<a': {}
+    '<a': {},
+    '<multiplecode': {}
   }
 
   // 生成博客文章标题
@@ -820,6 +879,10 @@ tag: `;
       <button id="diaLogCloseBtn">
         <i class="iconfont icon-guanbi"></i>
       </button>
+    </div>
+    <div class="dialogInput_item-hidden" id="item_codeInput">
+      <span class="dialogInput_title required">codeStyle：</span>
+      <input type="text" class="dialogInput" id="input_codeStyle" placeholder="请输入">
     </div>
     <div class="dialogInput_item-hidden" id="item_fileInput">
       <span class="dialogInput_title required">fileName：</span>
