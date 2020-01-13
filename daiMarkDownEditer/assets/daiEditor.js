@@ -2,7 +2,7 @@
   function DaiEditor(daiEditor) {
     this.author = 'daixiaobin',
     this.createDate = '2019.12.23',
-    this.updateDate = '2019.12.30',
+    this.updateDate = '2019.1.7',
     this.tableEditor = document.querySelector(daiEditor),
     // 创建全局变量
     this.creatVariable = function(option) {
@@ -110,6 +110,7 @@
           const value = header + _this.markDown.innerText;
 
           _this.download(fileName + '.md', value);
+          _this.alertMessage('文件创建成功', 'success');
         } else if (_this.diaLogType === 'code') {
           if (_this.mousesPosition.length === 0) return _this.alertMessage('光标位置存储失败')
           
@@ -217,6 +218,13 @@
 
     html = html.replace(/<ul.*?>|<\/ul>/ig, '');
     html = html.replace(/<ol.*?>|<\/ol>/ig, '');
+
+    html = html.replace(/<h1.*?>/ig, '<h1>');
+    html = html.replace(/<h2.*?>/ig, '<h2>');
+    html = html.replace(/<h3.*?>/ig, '<h3>');
+    html = html.replace(/<h4.*?>/ig, '<h4>');
+    html = html.replace(/<h5.*?>/ig, '<h5>');
+    html = html.replace(/<h6.*?>/ig, '<h6>');
 
     html = html.replace(/<li>|<li.*?>/ig, '<div>');
 
@@ -333,6 +341,9 @@
         break
       case 'next':
         document.execCommand('redo', false, null)
+        break
+      case 'saveDraft':
+        this.saveDraft()
         break
       case 'markDown':
         this.watchDialog('file')
@@ -659,6 +670,7 @@
     } else if (type === 'code') {
       this.diaLogTitle.innerHTML = '代码类型';
       this.item_codeInput.className = 'dialogInput_item';
+      this.input_codeStyle.value = 'javascript';
     }
     
     this.diaLogMask.className = '';
@@ -687,6 +699,14 @@
       _this.item_altInput.className = 'dialogInput_item-hidden';
       _this.item_titleInput.className = 'dialogInput_item-hidden';
     }, 150)
+  }
+
+  // 保存草稿
+  DaiEditor.prototype.saveDraft = function() {
+    const value = this.markDown.innerText;
+    const fileName = 'draftFile.md';
+    this.download(fileName, value);
+    this.alertMessage('保存成功', 'success');
   }
 
   // 生成下载markdown文件
@@ -737,7 +757,6 @@
     msgBox.innerHTML += msg;
     
     this.tableEditor.appendChild(msgMask);
-
 
     setTimeout(() => {
       msgBox.style.animation = 'slideUpMsg .2s ease-out';
@@ -1049,6 +1068,12 @@ tag: `;
           <i id="mdWindowEyes" class="iconfont icon-yanjing1"></i>
         </button>
         <span style="width: 45px; writing-mode: horizontal-tb;" class="icon_title">md窗口</span>
+      </div>
+      <div class="control_nav-item edit_saveDraft">
+        <button>
+          <i class="iconfont icon-baocuncaogao"></i>
+        </button>
+        <span class="icon_title">保存草稿</span>
       </div>
       <div class="control_nav-item edit_markDown">
         <button>
