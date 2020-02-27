@@ -211,6 +211,7 @@
 
   // 过滤编辑器粘贴事件
   DaiEditor.prototype.beforePaste = function(content) {
+    console.log(content)
     let html = content.replace(/<html>|<\/html>/ig, '');
     html = html.replace(/<body>|<\/body>/ig, '');
     html = html.replace(/<span.*?>|<\/span>/ig, '');
@@ -227,8 +228,10 @@
     html = html.replace(/<h6.*?>/ig, '<h6>');
 
     html = html.replace(/<li>|<li.*?>/ig, '<div>');
+    html = html.replace(/<p>|<p.*?>/ig, '<div>');
 
     html = html.replace(/<\/li>/ig, '</div>');
+    html = html.replace(/<\/p>/ig, '</div>');
 
     const aArr = html.match(/<a.*?<\/a>/ig);
     if (aArr) {
@@ -256,6 +259,7 @@
         html = html.replace(item, a);
       })
     }
+    console.log(html)
 
     return html
   }
@@ -381,7 +385,8 @@
     
     const rangeObj = selection.getRangeAt(0);
     const documentContent = rangeObj.cloneContents();
-    const hiddenBox = document.createElement('div');document.body.appendChild(hiddenBox);
+    const hiddenBox = document.createElement('div');
+    document.body.appendChild(hiddenBox);
     hiddenBox.style.className = 'hiddenBox'
     hiddenBox.appendChild(documentContent)
     const selecter = hiddenBox.innerHTML
@@ -411,11 +416,11 @@
     let string = '&nbsp;<singlecode>' + selecter + '</singlecode>&nbsp;';
 
     const content = this.textEditer.innerHTML;
-    if (content.indexOf(string) !== -1) {
-      this.textEditer.innerHTML = content.replace(string, selecter);
-    } else {
+    // if (content.indexOf(string) !== -1) {
+    //   this.textEditer.innerHTML = content.replace(string, selecter);
+    // } else {
       document.execCommand('insertHtml', false, string)
-    }
+    // }
   }
 
   // 转行跳出代码块
@@ -517,7 +522,7 @@
           })
         }
         else if (key === '<a') {
-          const aArr = string.match(/<a.*?<\/a>/ig)
+          const aArr = string.match(/<a.*?<\/a>/ig) || []
           aArr.forEach(item => {
             const aMsgArr = item.split('"');
 
@@ -781,11 +786,11 @@
   // 正则验证 与 替换文本
   DaiEditor.prototype.regList = {
     '<b>': {
-      reg: /<b>|<\/b>/ig,
+      reg: /<b.*?>|<\/b>/ig,
       text: '**'
     },
     '<strike>': {
-      reg: /<strike>|<\/strike>/ig,
+      reg: /<strike.*?>|<\/strike>/ig,
       text: '~~'
     },
     '<hr id="null">': {
@@ -805,11 +810,11 @@
       text: '`</span>'
     },
     '<ul>': {
-      reg: /<ul>|<\/ul>/ig,
+      reg: /<ul.*?>|<\/ul>/ig,
       text: ''
     },
     '<ol>': {
-      reg: /<ol>/ig,
+      reg: /<ol.*?>/ig,
       text: ''
     },
     '</ol>': {
@@ -817,31 +822,31 @@
       text: ''
     },
     '<i>': {
-      reg: /<i>|<\/i>/ig,
+      reg: /<i.*?>|<\/i>/ig,
       text: '*'
     },
     '<h1>': {
-      reg: /<h1>/ig,
+      reg: /<h1.*?>/ig,
       text: '<div># '
     },
     '<h2>': {
-      reg: /<h2>/ig,
+      reg: /<h2.*?>/ig,
       text: '<div>## '
     },
     '<h3>': {
-      reg: /<h3>/ig,
+      reg: /<h3.*?>/ig,
       text: '<div>### '
     },
     '<h4>': {
-      reg: /<h4>/ig,
+      reg: /<h4.*?>/ig,
       text: '<div>#### '
     },
     '<h5>': {
-      reg: /<h5>/ig,
+      reg: /<h5.*?>/ig,
       text: '<div>##### '
     },
     '<h6>': {
-      reg: /<h6>/ig,
+      reg: /<h6.*?>/ig,
       text: '<div>###### '
     },
     '</h1>': {
