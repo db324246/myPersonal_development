@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+</body>
+<script>
+  const mapLimit = (list, limit, asyncHandle) => {
+    return new Promise(resolve => {
+      let _limit = limit;
+      let recordList = [];
+      let index = 0;
+      let listCopy = [].concat(list);
+      let asyncList = []; // 正在进行的所有并发异步操作
+
+      const asyncFunc = () => {
+        while(_limit--) {
+          const data = listCopy.shift()
+          if (data) asyncList.push(asyncHandle(data, index++)); 
+        }
+        
+        Promise.all(asyncList).then(response => {
+          // 监听并记录每一次请求的结果
+          recordList = recordList.concat(response.filter(item => item));
+
+          if (listCopy.length !== 0) {
+            _limit = limit;
+            asyncList = [];
+            asyncFunc() // 数组还未迭代完，递归继续进行迭代
+          } else {
+            // 所有并发异步操作都完成后，本次并发控制迭代完成
+            resolve(recordList)
+          }
+        })
+      }
+
+      asyncFunc()
+    })
+  }
+
+  var dataLists = [1,2,3,4,5,6,7,8];
+  
+  mapLimit(dataLists, 3, (curItem, index) => {
+    return new Promise(resolve => {
+      // 执行异步处理
+      setTimeout(() => {
+        // 筛选异步处理的结果
+        console.log(index)
+        if (curItem === 4) resolve({ curItem, index })
+        else resolve()
+      }, 1000)  
+    });
+  }).then(response => {
+    console.log('finish', response)
+  })
+</script>
+</html>
