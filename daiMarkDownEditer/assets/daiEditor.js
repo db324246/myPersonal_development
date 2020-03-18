@@ -211,7 +211,6 @@
 
   // 过滤编辑器粘贴事件
   DaiEditor.prototype.beforePaste = function(content) {
-    console.log(content)
     let html = content.replace(/<html>|<\/html>/ig, '');
     html = html.replace(/<body>|<\/body>/ig, '');
     html = html.replace(/<span.*?>|<\/span>/ig, '');
@@ -259,11 +258,9 @@
         html = html.replace(item, a);
       })
     }
-    console.log(html)
-
     return html
   }
-
+  
   // 编辑器内添加的键盘
   DaiEditor.prototype.keyDownEvent = function(e) {
     // tab键 ---- 缩进四个空格

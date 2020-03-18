@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #drawBox {
+      margin: 50px auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="drawBox"></div>
+</body>
+<script src="./draw.js"></script>
+<script>
+  const dlDraw = new DlDraw({
+    el: '#drawBox',
+    width: 800,
+    height: 500,
+    colorDiskX: 550
+  })
+  // 切换工具回调
+  dlDraw.changeTools = function(tool) {
+    console.log(tool)
+  }
+  // 切换颜色回调
+  dlDraw.changeColor = function(color) {
+    console.log(color)
+  }
+  // 切换线宽回调
+  dlDraw.changeLine = function(lineWidth) {
+    console.log(lineWidth)
+  }
+  
+  // clearDesk() 桌布清空事件 接收一个布尔值，为true时会触发清空回调，默认false
+  // 桌布清空回调
+  dlDraw.emptyDesk = function(ctx) {
+    console.log(ctx)
+  }
+
+  // drawMouseDesk() 桌布绘制鼠标样式事件，接收四个参数currentTool: 当前工具类型，x: x坐标，y：y坐标，emitFlag, 布尔值，为true时会触发绘制鼠标样式的回调，默认false
+  // 鼠标样式的回调
+  dlDraw.drawMouse = function(ctx, currentTool, x, y) {
+    console.log(ctx, currentTool, x, y)
+  }
+
+  // 开始绘画回调
+  dlDraw.startDrawing = function(x, y, ctx) {
+    console.log(x, y, ctx)
+  }
+  // 绘画中回调
+  dlDraw.drawingPicture = function(x, y, ctx) {
+    console.log(x, y, ctx)
+  }
+
+  // 擦除回调
+  dlDraw.rubDrawing = function(x, y, width, height, ctx) {
+    console.log(x, y, width, height, ctx)
+  }
+</script>
+</html>
