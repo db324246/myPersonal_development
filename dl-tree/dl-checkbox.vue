@@ -25,9 +25,10 @@ export default {
   computed: {
     computedCheckboxClass() {
       let className = 'dl-checkbox'
+      if (this.disabled) className += ' disabled'
+      else className += ' normal'
       if (this.value === 'true') className += ' isChecked'
       else if (this.value === 'indeterminate') className += ' isIndeterminate'
-      if (this.disabled) className += ' disabled'
       return className
     }
   },
@@ -35,7 +36,6 @@ export default {
     handlerClick() {
       if (this.disabled) return
       const value = this.value === 'true' ? 'false' : 'true'
-      console.log(value)
       this.$emit('input', value)
     }
   }
@@ -55,6 +55,9 @@ export default {
   background-color: #fff;
   z-index: 1;
   transition: border-color .25s cubic-bezier(.71,-.46,.29,1.46),background-color .25s cubic-bezier(.71,-.46,.29,1.46)
+}
+.normal:hover {
+  border-color: #409eff;
 }
 .isChecked {
   background-color: #409eff;
@@ -90,5 +93,10 @@ export default {
   left: 0;
   right: 0;
   top: 5px;
-} 
+}
+.disabled {
+  background-color: #f2f6fc;
+  border-color: #dcdfe6;
+  cursor: not-allowed;
+}
 </style>

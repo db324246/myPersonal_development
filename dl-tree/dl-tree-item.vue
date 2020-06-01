@@ -1,18 +1,18 @@
 <template>
   <div :key="dnode.key" :class="nodeClass" :style="{'padding-left': nodePaddingLeft}" @click="treeNodeClick">
     <span 
-      v-if="!dnode.isleaf && dnode.children.length" 
+      v-if="!dnode.isleaf && dnode.children.length || dnode.lazyload" 
       class="dl-tree-item__expand-icon" 
       :style="{'transform': value ? 'rotate(90deg)' : 'rotate(0)'}"
       @click.stop="expandNode">
     </span>
-    <div class="dl-tree-item__label" :style="{'margin-left': !dnode.isleaf && dnode.children.length ? '0' : '26px'}">
+    <div class="dl-tree-item__label" :style="{'margin-left': !dnode.isleaf && dnode.children.length || dnode.lazyload ? '0' : '26px'}">
       <dl-checkbox 
         v-if="$parent.showCheckbox" 
         v-model="dnode.checked" 
-        :disabled="dnode.disabled"
-        @change="checkedChanged">
+        :disabled="dnode.disabled">
       </dl-checkbox>
+      <dl-loading v-model="dnode.loading" :load-key="dnode.key"></dl-loading>
       <span>{{label}}</span>
     </div>
   </div>
@@ -20,6 +20,7 @@
 
 <script>
 import dlCheckbox from './dl-checkbox'
+import dlLoading from './dl-loading'
 export default {
   name: 'dl-tree-item',
   componentName: 'dl-tree-item',
@@ -42,7 +43,8 @@ export default {
     }
   },
   components: {
-    dlCheckbox
+    dlCheckbox,
+    dlLoading
   },
   data() {
     return {
@@ -103,10 +105,8 @@ export default {
       if (this.$parent.expandOnClickNode) this.expandNode()
     },
     expandNode() {
-      this.$emit('input', !this.value)
-    },
-    checkedChanged() {
-
+      if (this.dnode.loading) return
+      this.$emit('input', { val: !this.value, node: this.dnode})
     }
   }
 }
