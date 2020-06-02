@@ -1,19 +1,21 @@
 <template>
   <div :key="dnode.key" :class="nodeClass" :style="{'padding-left': nodePaddingLeft}" @click="treeNodeClick">
     <span 
-      v-if="!dnode.isleaf && dnode.children.length || dnode.lazyload" 
+      v-if="!dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload" 
       class="dl-tree-item__expand-icon" 
       :style="{'transform': value ? 'rotate(90deg)' : 'rotate(0)'}"
       @click.stop="expandNode">
     </span>
-    <div class="dl-tree-item__label" :style="{'margin-left': !dnode.isleaf && dnode.children.length || dnode.lazyload ? '0' : '26px'}">
+    <div class="dl-tree-item__label" :style="{'margin-left': !dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload ? '0' : '26px'}">
       <dl-checkbox 
         v-if="$parent.showCheckbox" 
         v-model="dnode.checked" 
+        :params-data="dnode"
         :disabled="dnode.disabled">
       </dl-checkbox>
       <dl-loading v-model="dnode.loading" :load-key="dnode.key"></dl-loading>
-      <span>{{label}}</span>
+      <slot :node="dnode" :data="dnode.data">
+      </slot>
     </div>
   </div>
 </template>
@@ -61,20 +63,41 @@ export default {
       return className
     },
     nodePaddingLeft() {
-      return (this.level - 1) * 18 + 'px'
+      return (this.level - 1) * this.$parent.indent + 'px'
     }
   },
   watch: {
+    value: {
+      handler(val) {
+        if (val && this.$parent.autoExpandParent) {
+          this.autoExpandParent(this.dnode)
+        }
+      },
+      immediate: true
+    },
     'dnode.checked': {
       handler(val) {
-        if (val === 'indeterminate') return
+        if (val === 'indeterminate') {
+          this.dnode.halfChecked = true
+          if (!this.$parent.halfCheckedNodes.some(item => item.key === this.dnode.key)) {
+            this.$parent.halfCheckedNodes.push(this.dnode)
+          }
+          return
+        }
         else if (val === 'true' && !this.$parent.checkedNodes.some(item => item.key === this.dnode.key)) {
           this.$parent.checkedNodes.push(this.dnode)
         }
         else if (val === 'false' && this.$parent.checkedNodes.some(item => item.key === this.dnode.key)) {
           this.$parent.checkedNodes = this.$parent.checkedNodes.filter(item => item.key !== this.dnode.key)
         }
+        
+        this.dnode.halfChecked = false
+        if (this.$parent.halfCheckedNodes.some(item => item.key === this.dnode.key)) {
+          this.$parent.halfCheckedNodes = this.$parent.halfCheckedNodes.filter(item => item.key !== this.dnode.key)
+        }
 
+        if (!this.$parent.autoChecked) return
+        
         const chilLen = this.dnode.children.length
         const parChilLen = this.dnode.parent.children.length
 
@@ -93,11 +116,10 @@ export default {
           this.dnode.parent.checked = val
         }
       },
-      // immediate: true
+      immediate: true
     }
   },
   created() {
-
   },
   methods: {
     treeNodeClick() {
@@ -106,7 +128,12 @@ export default {
     },
     expandNode() {
       if (this.dnode.loading) return
-      this.$emit('input', { val: !this.value, node: this.dnode})
+      this.$emit('input', !this.value, this.dnode)
+    },
+    autoExpandParent(node) {
+      if (!node.parent) return
+      if (!node.parent.expanded) node.parent.expanded = true
+      this.autoExpandParent(node.parent)
     }
   }
 }
@@ -128,6 +155,7 @@ export default {
   background-color: #ebfafa;
 }
 .dl-tree-item__label {
+  flex: 1;
   display: flex;
   align-items: center;
   font-size: 14px;

@@ -15,8 +15,13 @@ export default {
     disabled: {
       type: Boolean,
       default: false
+    },
+    paramsData: {
+      type: Object,
+      default: () => {}
     }
   },
+  inject: ['dlTree'],
   data() {
     return {
 
@@ -37,6 +42,10 @@ export default {
       if (this.disabled) return
       const value = this.value === 'true' ? 'false' : 'true'
       this.$emit('input', value)
+      this.$nextTick(() => {
+        this.dlTree.checkChange(this.paramsData)
+        this.dlTree.check(this.paramsData.data)
+      })
     }
   }
 }
