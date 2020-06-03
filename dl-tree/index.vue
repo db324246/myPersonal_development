@@ -1,5 +1,6 @@
 <script>
 import DlTreeItem from './dl-tree-item'
+const defaultFunction = function() {}
 export default {
   name: 'DlTree',  
   componentName: 'DlTree',
@@ -33,7 +34,7 @@ export default {
     },
     load: {
       type: Function,
-      default: null
+      default: defaultFunction
     },
     renderAfterExpand: {
       type: Boolean,
@@ -77,11 +78,27 @@ export default {
     },
     filterNodeMethod: {
       type: Function,
-      default: null
+      default: defaultFunction
     },
     renderContent: {
       type: Function,
       default: null
+    },
+    draggable: {
+      type: Boolean,
+      default: false
+    },
+    allowDrop: {
+      type: Function,
+      default: defaultFunction
+    },
+    allowDrop: {
+      type: Function,
+      default: defaultFunction
+    },
+    allowDrag: {
+      type: Function,
+      default: defaultFunction
     }
   },
   provide() {
@@ -105,6 +122,7 @@ export default {
         isleaf: false,
         lazyload: true,
         loading: false,
+        droppedon: false,
         level: 0,
         children: [],
         data: null,
@@ -114,7 +132,9 @@ export default {
       nodeRecordsByData: new Map(), // data记录所有节点
       currentNode: {}, // 记录当前节点
       checkedNodes: [], // 记录已勾选的节点
-      halfCheckedNodes: []
+      halfCheckedNodes: [],
+      draggingNode: {},
+      dragIndicatorTop: '-99999999px'
     }
   },
   created() {
@@ -125,18 +145,35 @@ export default {
       }).then(data => {
         this.loadResolve(data, parentNode)
       })
-      // this.load && this.load(this.parentNode, this.loadResolve)
     } else if (this.data.length) {
       this.recursionNodeData(this.data, this.nodeData.children, this.nodeData.level, this.nodeData)
     }
   },
   render(h) {
     const childrenNodes = this.recursionNodeRender(h, this.nodeData.children)
+    const left = Object.keys(this.draggingNode).length ? this.draggingNode.level * this.indext + 26 + 'px' : '0'
+    const top = this.dragIndicatorTop
+    const display = Object.keys(this.draggingNode).length ? 'block' : 'none'
 
+    childrenNodes.push(h(
+      'div',
+      {
+        class: 'dl-tree__drop-indicator',
+        style: {
+          display,
+          'position': 'absolute',
+          left,
+          top,
+          'height': '1px',
+          'background-color': '#409eff',
+        }
+      }
+    ))
     return h(
       'div',
       {
-        class: 'dl-tree'
+        class: 'dl-tree',
+        ref: 'tree'
       },
       childrenNodes
     )
@@ -154,6 +191,7 @@ export default {
         isleaf: data[this.props.isleaf] || false,
         lazyload: true,
         loading: false,
+        droppedon: false,
         level,
         children: [],
         data,
@@ -231,10 +269,27 @@ export default {
           if (arr1[i].children.length) {
             childrenNodes = _this.recursionNodeRender(h, arr1[i].children)
           }
+          const eventOn = {}
+          if (_this.draggable) {
+            if (_this.allowDrag(arr1[i])) {
+              eventOn.dragstart = (ev) => _this.nodeDragStart(arr1[i], ev)
+              eventOn.dragend = (ev) => _this.nodeDragEnd(arr1[i], ev)
+            }
+            if (_this.allowDrop(_this.draggingNode, arr1[i])) {
+              eventOn.dragover = (ev) => _this.nodeDragover(arr1[i], ev)
+              eventOn.dragenter = (ev) => _this.nodeDragEnter(arr1[i], ev)
+              eventOn.dragleave = (ev) => _this.nodeDragLeave(arr1[i], ev)
+              eventOn.drop = (ev) => _this.nodeDroped(arr1[i], ev)
+            }
+          }
           const node = h(
             'div',
             {
-              class: 'dl-tree-node'
+              class: 'dl-tree-node',
+              attrs: {
+                draggable: _this.draggable && _this.allowDrag(arr1[i])
+              },
+              on: eventOn
             },
             [
               h(
@@ -253,7 +308,16 @@ export default {
                     default(props) {
                       if (_this.$scopedSlots.default) return _this.$scopedSlots.default(props)
                       else if (_this.renderContent) return _this.renderContent(h, props)
-                      else return h('span', props.data.label)
+                      else return h(
+                        'span',
+                        {
+                          class: 'dl-tree-item__label__content',
+                          style: {
+                            'background-color': arr1[i].droppedon ? '#409eff' : 'transparent',
+                            'color': arr1[i].droppedon ? '#fff' : '#606266'
+                          }
+                        },
+                        props.data.label)
                     }
                   }
                 }
@@ -261,7 +325,10 @@ export default {
               h(
                 'div',
                 {
-                  class: _this.returnExpandedClass(arr1[i].expanded)
+                  class: 'dl-tree-children',
+                  style: {
+                    'height': _this.returnExpandedClass(arr1[i])
+                  }
                 },
                 childrenNodes
               )
@@ -273,11 +340,21 @@ export default {
       recursionRender(h, childrenNodes, children)
       return children
     },
-    returnExpandedClass(expanded) {
-      let className = 'dl-tree-children '
-      if (expanded) className += 'dl-tree-children__show'
-      else className += 'dl-tree-children__hidden'
-      return className
+    returnExpandedClass(node) {
+      let floorCount = 0
+      if (!node.expanded) return floorCount * 26 + 'px'
+      const recursionFloors = function(floors, node) {
+        if (!node.expanded) return floors
+        const len = node.children.length
+        if (!len) return floors
+        floors++
+        for (let i = 0; i < len; i++) {
+          floors = recursionFloors(floors, node.children[i])
+        }
+        return floors
+      }
+      floorCount = recursionFloors(floorCount, node)
+      return floorCount * 26 + 'px'
     },
     expandedFunc(expanded, node) {
       if (this.lazy) {
@@ -461,47 +538,80 @@ export default {
     },
     filter(val) {
       this.filterVal = val
+    },
+    nodeDragStart(node, event) {
+      event.stopPropagation()
+      this.draggingNode = node
+      event.dataTransfer.setData('start', event.x)
+      this.$emit('node-drag-start', node, event)
+    },
+    nodeDragEnd(node, event) {
+      event.stopPropagation()
+
+    },
+    nodeDragEnter(node, event) {
+      event.stopPropagation()
+      // this.$emit('node-drag-enter', this.draggingNode, node, event)
+    },
+    nodeDragover(node, event) {
+      const top = this.$refs.tree.getClientRects()[0].top
+      const now = event.x
+      const offsetTop = event.target.offsetTop
+      console.log(event.target)
+      console.log(offsetTop)
+      if ((now - top - offsetTop) > 18) {
+        console.log('1')
+        this.dragIndicatorTop = offsetTop + 25 + 'px'
+        node.droppedon = false
+      } else if ((now - top - offsetTop) > 18) {
+        console.log('2')
+        this.dragIndicatorTop = '-99999999px'
+        node.droppedon = true
+      } else if ((now - top - offsetTop) > 0) {
+        console.log('3')
+        node.droppedon = false
+        this.dragIndicatorTop = offsetTop + 'px'
+      }
+
+      event.stopPropagation()
+      event.preventDefault()
+      this.$emit('node-drag-over', this.draggingNode, node, event)
+    },
+    nodeDragLeave(node, event) {
+      event.stopPropagation()
+      node.droppedon = false
+      // this.$emit('node-drag-leave', this.draggingNode, node, event)
+    },
+    nodeDroped(node, event) {
+      node.droppedon = false
+      event.stopPropagation()
+      console.log('drop', event)
     }
-  },
+  }
 }
 </script>
 
 <style scoped>
-.dl-tree-node {
+.dl-tree {
   position: relative;
+}
+.dl-tree-node {
+  /* position: relative; */
   cursor: pointer;
   background: #fff;
   white-space: nowrap;
+  /* height: 26px;
+  overflow: hidden;
+  transition: all .3s ease-in-out */
 }
 .dl-tree-children {
-  /* transition: height .3s ease-in-out */
-  z-index: 10;
+  overflow: hidden;
+  transition: height .3s ease-in-out
 }
 .dl-tree-children__show {
-  display: block;
-  transition: all .3s ease-in-out;
-  animation: slideDown .3s ease-in-out;
+  height: 52px;
 }
-.dl-tree-children__hidden {
-  transition: all .3s ease-in-out;
-  animation: slideup .3s ease-in-out;
-}
-@keyframes slideDown {
-  0% {
-    height: 0;
-  }
-  100% {
-    height: 26px
-  }
-}
-@keyframes slideup {
-  0% {
-    height: 26px;
-    display: block;
-  }
-  100% {
-    height: 0;
-    display: none;
-  }
-}
+/* .dl-tree-children__hidden {
+  display: none;
+} */
 </style>

@@ -1,26 +1,26 @@
-<template>
-  <div :key="dnode.key" :class="nodeClass" :style="{'padding-left': nodePaddingLeft}" @click="treeNodeClick">
-    <span 
-      v-if="!dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload" 
-      class="dl-tree-item__expand-icon" 
-      :style="{'transform': value ? 'rotate(90deg)' : 'rotate(0)'}"
-      @click.stop="expandNode">
-    </span>
-    <div class="dl-tree-item__label" :style="{'margin-left': !dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload ? '0' : '26px'}">
-      <dl-checkbox 
-        v-if="$parent.showCheckbox" 
-        v-model="dnode.checked" 
-        :params-data="dnode"
-        :disabled="dnode.disabled">
-      </dl-checkbox>
-      <dl-loading v-model="dnode.loading" :load-key="dnode.key"></dl-loading>
-      <slot :node="dnode" :data="dnode.data">
-      </slot>
-    </div>
-  </div>
-</template>
-
 <script>
+// <template>
+//   <div :key="dnode.key" :class="nodeClass" :style="{'padding-left': nodePaddingLeft}" @click="treeNodeClick" :draggable="$parent.draggable && $parent.allowDrag(dnode)">
+//     <span 
+//       v-if="!dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload" 
+//       class="dl-tree-item__expand-icon" 
+//       :style="{'transform': value ? 'rotate(90deg)' : 'rotate(0)'}"
+//       @click.stop="expandNode">
+//     </span>
+//     <div class="dl-tree-item__label" :style="{'margin-left': !dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload ? '0' : '26px'}">
+//       <dl-checkbox 
+//         v-if="$parent.showCheckbox" 
+//         v-model="dnode.checked" 
+//         :params-data="dnode"
+//         :disabled="dnode.disabled">
+//       </dl-checkbox>
+//       <dl-loading v-model="dnode.loading" :load-key="dnode.key"></dl-loading>
+//       <slot :node="dnode" :data="dnode.data">
+//       </slot>
+//     </div>
+//   </div>
+// </template>
+
 import dlCheckbox from './dl-checkbox'
 import dlLoading from './dl-loading'
 export default {
@@ -121,12 +121,57 @@ export default {
   },
   created() {
   },
+  render(h) {
+    const childrenNodes = [
+      h(
+        'div',
+        {
+          class: 'dl-tree-item__label',
+          style: {
+            'margin-left': !this.dnode.isleaf && this.dnode.children.length || this.$parent.lazy && this.dnode.lazyload ? '0' : '26px'
+          }
+        },
+        this.renderLabelChild(h)
+      )
+    ]
+    if (!this.dnode.isleaf && this.dnode.children.length || this.$parent.lazy && this.dnode.lazyload) {
+      childrenNodes.unshift(h(
+        'span',
+        {
+          class: 'dl-tree-item__expand-icon',
+          style: {
+            'transform': this.value ? 'rotate(90deg)' : 'rotate(0)'
+          },
+          on: {
+            click: this.expandNode
+          }
+        }
+      ))
+    }
+    return h(
+      'div',
+      {
+        class: this.nodeClass,
+        style: {
+          'padding-left': this.nodePaddingLeft
+        },
+        attrs: {
+          key: this.dnode.key
+        },
+        on: {
+          click: this.treeNodeClick
+        }
+      },
+      childrenNodes
+    )
+  },
   methods: {
     treeNodeClick() {
       this.$parent.nodeClick(this.dnode)
       if (this.$parent.expandOnClickNode) this.expandNode()
     },
-    expandNode() {
+    expandNode(e) {
+      e.stopPropagation()
       if (this.dnode.loading) return
       this.$emit('input', !this.value, this.dnode)
     },
@@ -134,6 +179,45 @@ export default {
       if (!node.parent) return
       if (!node.parent.expanded) node.parent.expanded = true
       this.autoExpandParent(node.parent)
+    },
+    renderLabelChild(h) {
+      const children = [
+        h(
+          'dl-loading',
+          {
+            props: {
+              'value': this.dnode.loading,
+              'load-key': this.dnode.key
+            }
+          }
+        ),
+        h(
+          'div',
+          {
+            class: 'dl-tree-item__label__container'
+          },
+          this.$scopedSlots.default({
+            node: this.dnode,
+            data: this.dnode.data
+          })
+        )
+      ]
+      if (this.$parent.showCheckbox) children.unshift(h(
+        'dl-checkbox',
+        {
+          props: {
+            'value': this.dnode.checked,
+            'params-data': this.dnode,
+            'disabled': this.dnode.disabled
+          },
+          on: {
+            input: (val) => {
+              this.dnode.checked = val
+            }
+          }
+        }
+      ))
+      return children
     }
   }
 }
@@ -155,11 +239,14 @@ export default {
   background-color: #ebfafa;
 }
 .dl-tree-item__label {
+  /* position: relative; */
   flex: 1;
   display: flex;
   align-items: center;
+  height: 26px;
   font-size: 14px;
   color: #606266;
+  z-index: 10;
 }
 .dl-tree-item__expand-icon {
   display: flex;
@@ -182,5 +269,10 @@ export default {
   border-left-color: #c0c4cc;
   border-right-color: transparent;
   border-bottom-color: transparent;
+}
+.dl-tree-item__label__container {
+  flex: 1;
+  height: 26px;
+  line-height: 26px;
 }
 </style>
