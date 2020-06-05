@@ -1,6 +1,13 @@
 <script>
 import DlTreeItem from './dl-tree-item'
 const defaultFunction = function() {}
+const findNodeParent = function(node) {
+  if (!node.parentNode || node.className === 'dl-tree-node') return node
+  if (node.parentNode.className === 'dl-tree-node') {
+    return node.parentNode
+  }
+  else return findNodeParent(node.parentNode)
+}
 export default {
   name: 'DlTree',  
   componentName: 'DlTree',
@@ -134,7 +141,8 @@ export default {
       checkedNodes: [], // 记录已勾选的节点
       halfCheckedNodes: [],
       draggingNode: {},
-      dragIndicatorTop: '-99999999px'
+      dragIndicatorTop: '-99999999px',
+      dropType: '',
     }
   },
   created() {
@@ -164,8 +172,10 @@ export default {
           'position': 'absolute',
           left,
           top,
+          'right': '0',
           'height': '1px',
           'background-color': '#409eff',
+          'z-index': '200'
         }
       }
     ))
@@ -542,7 +552,6 @@ export default {
     nodeDragStart(node, event) {
       event.stopPropagation()
       this.draggingNode = node
-      event.dataTransfer.setData('start', event.x)
       this.$emit('node-drag-start', node, event)
     },
     nodeDragEnd(node, event) {
@@ -551,26 +560,26 @@ export default {
     },
     nodeDragEnter(node, event) {
       event.stopPropagation()
-      // this.$emit('node-drag-enter', this.draggingNode, node, event)
+      this.$emit('node-drag-enter', this.draggingNode, node, event)
     },
     nodeDragover(node, event) {
       const top = this.$refs.tree.getClientRects()[0].top
-      const now = event.x
-      const offsetTop = event.target.offsetTop
-      console.log(event.target)
-      console.log(offsetTop)
+      const now = event.y
+      const parent = findNodeParent(event.target)
+
+      const offsetTop = parent.offsetTop
       if ((now - top - offsetTop) > 18) {
-        console.log('1')
         this.dragIndicatorTop = offsetTop + 25 + 'px'
         node.droppedon = false
-      } else if ((now - top - offsetTop) > 18) {
-        console.log('2')
+        this.dropType = 'after'
+      } else if ((now - top - offsetTop) > 8) {
         this.dragIndicatorTop = '-99999999px'
         node.droppedon = true
+        this.dropType = 'inner'
       } else if ((now - top - offsetTop) > 0) {
-        console.log('3')
         node.droppedon = false
         this.dragIndicatorTop = offsetTop + 'px'
+        this.dropType = 'before'
       }
 
       event.stopPropagation()
@@ -580,12 +589,14 @@ export default {
     nodeDragLeave(node, event) {
       event.stopPropagation()
       node.droppedon = false
-      // this.$emit('node-drag-leave', this.draggingNode, node, event)
+      this.$emit('node-drag-leave', this.draggingNode, node, event)
     },
     nodeDroped(node, event) {
       node.droppedon = false
+      this.dragIndicatorTop = '-99999999px'
       event.stopPropagation()
-      console.log('drop', event)
+
+      this.$emit('node-drop', this.draggingNode, node, this.dropType, event)
     }
   }
 }
