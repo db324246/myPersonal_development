@@ -104,8 +104,7 @@ export default {
   top: 5px;
 }
 .disabled {
-  background-color: #f2f6fc;
-  border-color: #dcdfe6;
+  opacity: .4;
   cursor: not-allowed;
 }
 </style>

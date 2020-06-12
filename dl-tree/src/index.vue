@@ -5,16 +5,27 @@ const findNodeParent = function(node) {
   if (!node.parentNode || node.className === 'dl-tree-node') return node
   if (node.parentNode.className === 'dl-tree-node') {
     return node.parentNode
-  }
-  else return findNodeParent(node.parentNode)
+  } else return findNodeParent(node.parentNode)
 }
 export default {
-  name: 'DlTree',  
-  componentName: 'DlTree',
+  name: 'dl-tree',
+  componentName: 'dl-tree',
   components: {
     DlTreeItem
   },
   props: {
+    data: {
+      type: Array,
+      default: () => []
+    },
+    emptyText: {
+      type: String,
+      default: '暂无数据'
+    },
+    nodeKey: {
+      type: String,
+      default: ''
+    },
     props: {
       type: Object,
       required: true,
@@ -23,13 +34,84 @@ export default {
           label: 'label',
           children: 'children',
           isleaf: 'isleaf',
-          disabled: 'disabled'
+          disabled: 'disabled',
+          hasChecked: 'hasChecked'
         }
       }
     },
-    data: {
+    renderAfterExpand: {
+      type: Boolean,
+      default: false
+    },
+    load: {
+      type: Function,
+      default: defaultFunction
+    },
+    renderContent: {
+      type: Function,
+      default: null
+    },
+    highlightCurrent: {
+      type: Boolean,
+      default: false
+    },
+    currentNodeKey: {
+      type: [Number, String],
+      default: ''
+    },
+    defaultExpandAll: {
+      type: Boolean,
+      default: false
+    },
+    defaultExpandedKeys: {
       type: Array,
-      default: () => []
+      default() {
+        return []
+      }
+    },
+    expandOnClickNode: {
+      type: Boolean,
+      default: true
+    },
+    checkOnClickNode: {
+      type: Boolean,
+      default: false
+    },
+    autoExpandParent: {
+      type: Boolean,
+      default: true
+    },
+    showCheckbox: {
+      type: Boolean,
+      default: false
+    },
+    singleChecked: {
+      type: Boolean,
+      default: false
+    },
+    checkStrictly: {
+      type: Boolean,
+      default: true
+    },
+    defaultCheckedKeys: {
+      type: Array,
+      default() {
+        return []
+      }
+    },
+    defaultDisabledKeys: {
+      type: Array,
+      default() {
+        return []
+      }
+    },
+    filterNodeMethod: {
+      type: Function,
+      default: defaultFunction
+    },
+    accordion: {
+      type: Boolean,
+      default: false
     },
     indent: {
       type: Number,
@@ -39,65 +121,9 @@ export default {
       type: Boolean,
       default: false
     },
-    load: {
-      type: Function,
-      default: defaultFunction
-    },
-    renderAfterExpand: {
-      type: Boolean,
-      default: false
-    },
-    nodeKey: {
-      type: String,
-      default: ''
-    },
-    defaultExpandAll: {
-      type: Boolean,
-      default: false
-    },
-    accordion: {
-      type: Boolean,
-      default: false
-    },
-    defaultExpandedKeys: {
-      default: Array,
-      default: () => []
-    },
-    expandOnClickNode: {
-      type: Boolean,
-      default: true
-    },
-    autoExpandParent: {
-      type: Boolean,
-      default: true
-    },
-    highlightCurrent: {
-      type: Boolean,
-      default: false
-    },
-    showCheckbox: {
-      type: Boolean,
-      default: false
-    },
-    autoChecked: {
-      type: Boolean,
-      default: true
-    },
-    filterNodeMethod: {
-      type: Function,
-      default: defaultFunction
-    },
-    renderContent: {
-      type: Function,
-      default: null
-    },
     draggable: {
       type: Boolean,
       default: false
-    },
-    allowDrop: {
-      type: Function,
-      default: defaultFunction
     },
     allowDrop: {
       type: Function,
@@ -117,7 +143,7 @@ export default {
     return {
       keyFlag: false,
       filterVal: '',
-      countKey: 0,
+      countKey: 100,
       nodeData: {
         id: 'root',
         key: 'root',
@@ -125,6 +151,7 @@ export default {
         expanded: true,
         disabled: false,
         checked: 'false',
+        hasChecked: 'true',
         halfChecked: false,
         isleaf: false,
         lazyload: true,
@@ -137,15 +164,23 @@ export default {
       },
       nodeRecordsByKey: new Map(), // key记录所有节点
       nodeRecordsByData: new Map(), // data记录所有节点
+      currentKey: '',
       currentNode: {}, // 记录当前节点
       checkedNodes: [], // 记录已勾选的节点
       halfCheckedNodes: [],
       draggingNode: {},
       dragIndicatorTop: '-99999999px',
-      dropType: '',
+      dragIndicatorLeft: '0',
+      dropType: ''
+    }
+  },
+  watch: {
+    'currentNode.key'(val) {
+      if(val) this.$emit('current-change', this.currentNode.data, this.currentNode)
     }
   },
   created() {
+    if (this.currentNodeKey) this.currentKey = this.currentNodeKey
     if (this.lazy) {
       const parentNode = this.nodeData
       new Promise(resolve => {
@@ -159,10 +194,18 @@ export default {
   },
   render(h) {
     const childrenNodes = this.recursionNodeRender(h, this.nodeData.children)
-    const left = Object.keys(this.draggingNode).length ? this.draggingNode.level * this.indext + 26 + 'px' : '0'
+    const left = this.dragIndicatorLeft
     const top = this.dragIndicatorTop
     const display = Object.keys(this.draggingNode).length ? 'block' : 'none'
-
+    if (!childrenNodes.length) {
+      childrenNodes.push(h(
+        'div',
+        {
+          class: 'empty-tree__text'
+        },
+        this.emptyText
+      ))
+    }
     childrenNodes.push(h(
       'div',
       {
@@ -190,15 +233,18 @@ export default {
   },
   methods: {
     newNode(data, parentNode, level, key, expanded) {
-      return {
+      const checked = this.showCheckbox && this.defaultCheckedKeys.length && this.defaultCheckedKeys.includes(key) ? 'true' : 'false'
+
+      const disabled = this.showCheckbox && this.defaultDisabledKeys.length && this.defaultDisabledKeys.includes(key) || false
+
+      const node = {
         id: key,
         key,
         type: 'node',
         expanded,
-        disabled: data[this.props.disabled] || false,
-        checked: 'false',
+        checked: checked,
+        hasChecked: data[this.props.hasChecked] || 'true',
         halfChecked: false,
-        isleaf: data[this.props.isleaf] || false,
         lazyload: true,
         loading: false,
         droppedon: false,
@@ -207,6 +253,15 @@ export default {
         data,
         parent: parentNode
       }
+      
+      node.disabled = disabled || typeof this.props.disabled === 'function' ? this.props.disabled(data, node) : data[this.props.disabled] || false
+      node.isleaf = typeof this.props.isleaf === 'function' ? this.props.isleaf(data, node) : data[this.props.isleaf] || false
+
+      if (this.currentKey && this.currentKey === key) {
+        this.currentKey = ''
+        this.currentNode = node
+      }
+      return node
     },
     loadResolve(data, parentNode, cb) {
       const len = data.length
@@ -265,41 +320,71 @@ export default {
         }
       }
     },
-    recursionNodeRender(h, childrenNodes) {
+    recursionNodeRender(h, arr1) {
       const children = []
       const _this = this
-      const recursionRender = function(h, arr1, arr2) {
+      const recursionRender = function(h, arr1) {
         const len = arr1.length
         for (let i = 0; i < len; i++) {
           if (_this.filterVal && !_this.filterNodeMethod(_this.filterVal, arr1[i].data, arr1[i])) {
             continue
           }
           let childrenNodes = []
-          
+
           if (arr1[i].children.length) {
             childrenNodes = _this.recursionNodeRender(h, arr1[i].children)
           }
-          const eventOn = {}
+          const eventOndrag = {}
+          const eventOndrop = {}
           if (_this.draggable) {
             if (_this.allowDrag(arr1[i])) {
-              eventOn.dragstart = (ev) => _this.nodeDragStart(arr1[i], ev)
-              eventOn.dragend = (ev) => _this.nodeDragEnd(arr1[i], ev)
+              eventOndrag.dragstart = (ev) => {
+                _this.nodeDragStart(arr1[i], ev)
+                ev.stopPropagation()
+              }
+              eventOndrag.dragend = (ev) => {
+                _this.nodeDragEnd(arr1[i], ev)
+                ev.stopPropagation()
+              }
+            } else {
+              eventOndrag.mousedown = (ev) => {
+                ev.stopPropagation()
+                ev.preventDefault()
+              }
             }
-            if (_this.allowDrop(_this.draggingNode, arr1[i])) {
-              eventOn.dragover = (ev) => _this.nodeDragover(arr1[i], ev)
-              eventOn.dragenter = (ev) => _this.nodeDragEnter(arr1[i], ev)
-              eventOn.dragleave = (ev) => _this.nodeDragLeave(arr1[i], ev)
-              eventOn.drop = (ev) => _this.nodeDroped(arr1[i], ev)
+            if (_this.allowDrop(_this.draggingNode, arr1[i], _this.dropType)) {
+              eventOndrop.dragover = (ev) => {
+                ev.stopPropagation()
+                ev.preventDefault()
+                _this.nodeDragover(arr1[i], ev)
+              }
+              eventOndrop.dragenter = (ev) => {
+                _this.nodeDragEnter(arr1[i], ev)
+                ev.stopPropagation()
+              }
+              eventOndrop.dragleave = (ev) => {
+                _this.nodeDragLeave(arr1[i], ev)
+                ev.stopPropagation()
+              }
+              eventOndrop.drop = (ev) => {
+                _this.nodeDroped(arr1[i], ev)
+                ev.stopPropagation()
+              } 
+            } else {
+              arr1[i].droppedon = false
+              _this.dragIndicatorTop = '-99999999px'
+              _this.dragIndicatorLeft = '0'
             }
           }
+          const label = typeof _this.props.label === 'function' ? _this.props.label(arr1[i].data, arr1[i]) : arr1[i].data[_this.props.label]
           const node = h(
             'div',
             {
               class: 'dl-tree-node',
               attrs: {
-                draggable: _this.draggable && _this.allowDrag(arr1[i])
+                draggable: _this.draggable
               },
-              on: eventOn
+              on: eventOndrag
             },
             [
               h(
@@ -308,26 +393,36 @@ export default {
                   props: {
                     value: arr1[i].expanded,
                     level: arr1[i].level,
-                    label: arr1[i].data[_this.props.label],
+                    label: label,
                     dnode: arr1[i]
                   },
                   on: {
                     input: _this.expandedFunc
                   },
+                  nativeOn: eventOndrop,
                   scopedSlots: {
                     default(props) {
-                      if (_this.$scopedSlots.default) return _this.$scopedSlots.default(props)
-                      else if (_this.renderContent) return _this.renderContent(h, props)
-                      else return h(
-                        'span',
-                        {
-                          class: 'dl-tree-item__label__content',
-                          style: {
-                            'background-color': arr1[i].droppedon ? '#409eff' : 'transparent',
-                            'color': arr1[i].droppedon ? '#fff' : '#606266'
-                          }
-                        },
-                        props.data.label)
+                      if (_this.$scopedSlots.default) {
+                        return _this.$scopedSlots.default(props)
+                      }
+                      else if (_this.renderContent) {
+                        return _this.renderContent(h, props)
+                      }
+                      else {
+                        const droppedon = arr1[i].droppedon
+                        return h(
+                          'span',
+                          {
+                            class: 'dl-tree-item__label__content',
+                            style: {
+                              'box-sizing': 'border-box',
+                              'background-color': droppedon ? '#409eff' : 'transparent',
+                              'color': droppedon ? '#fff' : '#606266'
+                            }
+                          },
+                          label
+                        )
+                      }
                     }
                   }
                 }
@@ -337,27 +432,26 @@ export default {
                 {
                   class: 'dl-tree-children',
                   style: {
-                    'height': _this.returnExpandedClass(arr1[i])
+                    'height': _this.returnExpandedHeight(arr1[i])
                   }
                 },
                 childrenNodes
               )
             ]
           )
-          arr2.push(node)
+          children.push(node)
         }
       }
-      recursionRender(h, childrenNodes, children)
+      recursionRender(h, arr1)
       return children
     },
-    returnExpandedClass(node) {
+    returnExpandedHeight(node) {
       let floorCount = 0
-      if (!node.expanded) return floorCount * 26 + 'px'
       const recursionFloors = function(floors, node) {
         if (!node.expanded) return floors
         const len = node.children.length
         if (!len) return floors
-        floors++
+        floors += len
         for (let i = 0; i < len; i++) {
           floors = recursionFloors(floors, node.children[i])
         }
@@ -409,27 +503,6 @@ export default {
       this.currentNode = node
       this.$emit('node-click', node, node.data, node.key)
     },
-    getCheckedKeys(leafOnly = false) {
-      let result = []
-      if (this.keyFlag) result = this.checkedNodes.map(item => item.key)
-      else result = this.checkedNodes.map(item => item.data)
-      if (leafOnly) result = result.filter(item => item.isleaf)
-      return result
-    },
-    getCheckedNodes(leafOnly = false, includeHalfChecked = false) {
-      let result = []
-      if (leafOnly) result = this.checkedNodes.filter(item => item.isleaf) 
-      else result = this.checkedNodes
-      if (includeHalfChecked) result = result.concat(this.halfCheckedNodes)
-
-      return result
-    },
-    getHalfCheckedKeys() {
-      return this.halfCheckedNodes.map(item => item.key)
-    },
-    getHalfCheckedNodes() {
-      return this.halfCheckedNodes
-    },
     checkChange(node) {
       const checked = node.checked === 'true'
       const childChecked = node.children.some(item => item.checked === 'true')
@@ -444,6 +517,70 @@ export default {
       }
       this.$emit('check', data, checkedObj)
     },
+    setChecked(data, checked = true) {
+      let node = undefined
+      if (typeof data === 'object') node = this.nodeRecordsByData.get(data)
+      else node = this.nodeRecordsByKey.get(data)
+
+      if (checked) node.checked = 'true'
+      else node.checked = 'false'
+    },
+    filter(val) {
+      this.filterVal = val
+    },
+    updateNode(data, key) {
+      if (!key) return new Error('key is a required parameter ')
+      const node = this.nodeRecordsByKey.get(key)
+      const _key = this.keyFlag ? data[this.nodeKey] : this.countKey
+      const disabled = this.showCheckbox && this.defaultDisabledKeys.length && this.defaultDisabledKeys.includes(key) || false
+      this.countKey++
+      node.data = data
+      node.key = _key
+      node.id = _key
+      node.isleaf = typeof this.props.isleaf === 'function' ? this.props.isleaf(data, node) : data[this.props.isleaf] || false
+      node.disabled = disabled || typeof this.props.disabled === 'function' ? this.props.disabled(data, node) : data[this.props.disabled] || false
+    },
+    updateKeyChildren(key, data) {
+      if (!key) return new Error('key is a required parameter ')
+      const node = this.nodeRecordsByKey.get(key)
+
+      this.removeChildren(node)
+      if (!data.length) return
+      const len = data.length
+      const level = node.level + 1
+      for (let i = 0; i < len; i++) {
+        const key = this.keyFlag ? data[i][this.nodeKey] : this.countKey
+        const expanded = this.defaultExpandedKeys.includes(key)
+        this.countKey++
+        const _node = this.newNode(data[i], node, level, key, expanded)
+
+        this.nodeRecordsByKey.set(key, _node)
+        this.nodeRecordsByData.set(data[i], _node)
+        node.children.push(_node)
+      }
+    },
+    getCheckedNodes(leafOnly = false, includeHalfChecked = false) {
+      let result = []
+      if (leafOnly) result = this.checkedNodes.filter(item => item.isleaf)
+      else result = this.checkedNodes
+
+      if (includeHalfChecked) result = result.concat(this.halfCheckedNodes)
+      return result.map(item => item.data)
+    },
+    setCheckedNodes(datas) {
+      const len = datas.length
+      for (let i = 0; i < len; i++) {
+        const node = this.nodeRecordsByData.get(datas[i])
+        node.checked = 'true'
+      }
+    },
+    getCheckedKeys(leafOnly = false) {
+      let result = []
+      if (this.keyFlag) result = this.checkedNodes.map(item => item.key)
+      else result = this.checkedNodes.map(item => item.data)
+      if (leafOnly) result = result.filter(item => item.isleaf)
+      return result
+    },
     setCheckedKeys(keys) {
       const len = keys.length
       for (let i = 0; i < len; i++) {
@@ -451,17 +588,26 @@ export default {
         node.checked = 'true'
       }
     },
-    setChecked(data, checked = true) {
-      let node = undefined
-      if (typeof(data) === 'object') node = this.nodeRecordsByData.get(data)
-      else node = this.nodeRecordsByKey.get(data)
+    setChecked(key, checked) {
+      if (!key) return new Error('key is a required parameter ')
 
-      if (checked) node.checked = 'true'
-      else node.checked = 'false'
+      let node = {}
+      if (typeof key === 'object') node = this.nodeRecordsByData.get(key)
+      else node = this.nodeRecordsByKey.get(key)
+
+      node.checked = checked ? 'true' : 'false'
     },
-    getNode(data) {
-      if (typeof(data) === 'object') return this.nodeRecordsByData.get(data)
-      else return this.nodeRecordsByKey.get(data)
+    getHalfCheckedNodes() {
+      return this.halfCheckedNodes.map(item => item.data)
+    },
+    getHalfCheckedKeys() {
+      return this.halfCheckedNodes.map(item => item.key)
+    },
+    getCurrentKey() {
+      return this.currentNode.key || null
+    },
+    getCurrentNode() {
+      return this.currentNode.data || null
     },
     setCurrentKey(key) {
       this.currentNode = this.nodeRecordsByKey.get(key)
@@ -469,10 +615,14 @@ export default {
     setCurrentNode(node) {
       this.currentNode = node
     },
+    getNode(data) {
+      if (typeof data === 'object') return this.nodeRecordsByData.get(data)
+      else return this.nodeRecordsByKey.get(data)
+    },
     remove(data) {
       let key = undefined
       let node = undefined
-      if (typeof(data) === 'object') {
+      if (typeof data === 'object') {
         node = this.nodeRecordsByData.get(data)
         key = node.key
       } else {
@@ -485,8 +635,8 @@ export default {
       let _parent = {}
       if (!parentNode) {
         _parent = this.nodeData
-      } else if (typeof(parentNode) === 'object') {
-        if (parentNode.type) _parent = parentNode
+      } else if (typeof parentNode === 'object') {
+        if (parentNode.type && parentNode.type === 'node') _parent = parentNode
         else _parent = this.nodeRecordsByData.get(parentNode)
       } else {
         _parent = this.nodeRecordsByKey.get(parentNode)
@@ -515,6 +665,40 @@ export default {
         _parent.children.push(node)
       }
     },
+    unshiftChild(data, parentNode) {
+      let _parent = {}
+      if (!parentNode) {
+        _parent = this.nodeData
+      } else if (typeof parentNode === 'object') {
+        if (parentNode.type && parentNode.type === 'node') _parent = parentNode
+        else _parent = this.nodeRecordsByData.get(parentNode)
+      } else {
+        _parent = this.nodeRecordsByKey.get(parentNode)
+      }
+
+      const level = _parent.level + 1
+      const key = this.keyFlag ? data[this.nodeKey] : this.countKey
+      const expanded = this.defaultExpandedKeys.includes(key)
+      const node = this.newNode(data, _parent, level, key, expanded)
+
+      if (!_parent.expanded && this.lazy && _parent.lazyload) {
+        new Promise(resolve => {
+          _parent.loading = true
+          this.load && this.load(_parent, resolve)
+        }).then(_data => {
+          _data.unshift(data)
+          this.nodeRecordsByKey.set(key, node)
+          this.nodeRecordsByData.set(data, node)
+          this.loadResolve(_data, _parent)
+        })
+      } else {
+
+        _parent.expanded = true
+        this.nodeRecordsByKey.set(key, node)
+        this.nodeRecordsByData.set(data, node)
+        _parent.children.unshift(node)
+      }
+    },
     insertBefore(data, refNode) {
       this.insert(data, refNode, 'before')
     },
@@ -525,7 +709,7 @@ export default {
       let _sibling = {}
       if (!refNode) {
         return new Error('refNode is a required parameter')
-      } else if (typeof(refNode) === 'object') {
+      } else if (typeof refNode === 'object') {
         if (refNode.type) _sibling = refNode
         else _sibling = this.nodeRecordsByData.get(refNode)
       } else {
@@ -539,30 +723,27 @@ export default {
       this.countKey++
       const node = this.newNode(data, parent, level, key, expanded)
       let index = parent.children.indexOf(_sibling)
-      
+
       if (type === 'before') {
         parent.children.splice(index, 0, node)
       } else if (type === 'after') {
         parent.children.splice(++index, 0, node)
       }
     },
-    filter(val) {
-      this.filterVal = val
-    },
     nodeDragStart(node, event) {
-      event.stopPropagation()
       this.draggingNode = node
       this.$emit('node-drag-start', node, event)
     },
     nodeDragEnd(node, event) {
-      event.stopPropagation()
-
+      node.droppedon = false
+      this.dragIndicatorTop = '-99999999px'
+      this.dragIndicatorLeft = '0'
     },
     nodeDragEnter(node, event) {
-      event.stopPropagation()
       this.$emit('node-drag-enter', this.draggingNode, node, event)
     },
     nodeDragover(node, event) {
+      if (this.draggingNode.key === node.key) return
       const top = this.$refs.tree.getClientRects()[0].top
       const now = event.y
       const parent = findNodeParent(event.target)
@@ -570,33 +751,88 @@ export default {
       const offsetTop = parent.offsetTop
       if ((now - top - offsetTop) > 18) {
         this.dragIndicatorTop = offsetTop + 25 + 'px'
+        this.dragIndicatorLeft = node.level * this.indent + 26 + 'px'
         node.droppedon = false
         this.dropType = 'after'
       } else if ((now - top - offsetTop) > 8) {
         this.dragIndicatorTop = '-99999999px'
+        this.dragIndicatorLeft = '0'
         node.droppedon = true
         this.dropType = 'inner'
       } else if ((now - top - offsetTop) > 0) {
         node.droppedon = false
         this.dragIndicatorTop = offsetTop + 'px'
         this.dropType = 'before'
+        this.dragIndicatorLeft = node.level * this.indent + 26 + 'px'
       }
-
-      event.stopPropagation()
-      event.preventDefault()
       this.$emit('node-drag-over', this.draggingNode, node, event)
     },
     nodeDragLeave(node, event) {
-      event.stopPropagation()
       node.droppedon = false
       this.$emit('node-drag-leave', this.draggingNode, node, event)
     },
     nodeDroped(node, event) {
       node.droppedon = false
       this.dragIndicatorTop = '-99999999px'
-      event.stopPropagation()
+      this.dragIndicatorLeft = '0'
 
+      this.dropNodeData(node)
       this.$emit('node-drop', this.draggingNode, node, this.dropType, event)
+    },
+    dropNodeData(node) {
+      let index
+      switch (this.dropType) {
+        case 'before':
+          index = node.parent.children.findIndex(item => item.key === node.key)
+          this.draggingNode.parent.children = this.draggingNode.parent.children.filter(item => item.key !== this.draggingNode.key)
+          this.draggingNode.parent = node.parent
+          this.draggingNode.level = node.level
+          node.parent.children.splice(index, 0, this.draggingNode)
+          break;
+        case 'inner':
+          this.draggingNode.parent.children = this.draggingNode.parent.children.filter(item => item.key !== this.draggingNode.key)
+          if (this.draggingNode.parent.key !== node.key) {
+            this.draggingNode.parent = node
+            this.draggingNode.level = node.level + 1
+            node.children.push(this.draggingNode)
+          }
+          break;
+        case 'after':
+          index = node.parent.children.findIndex(item => item.key === node.key) + 1
+          this.draggingNode.parent.children = this.draggingNode.parent.children.filter(item => item.key !== this.draggingNode.key)
+          this.draggingNode.parent = node.parent
+          this.draggingNode.level = node.level
+          node.parent.children.splice(index, 0, this.draggingNode)
+          break;
+      }
+    },
+    removeChildren(node) {
+      if (node.children.length) {
+        const len = node.children.length
+        for (let i = 0; i < len; i++) {
+          const item = node.children[i]
+          if (this.nodeRecordsByKey.has(item.key)) {
+            this.nodeRecordsByKey.delete(item.key)
+          }
+          if (this.nodeRecordsByData.has(item.data)) {
+            this.nodeRecordsByData.delete(item.data)
+          }
+          if (this.draggingNode.key === item.key) {
+            this.draggingNode = {}
+          }
+          if (this.currentNode.key === item.key) {
+            this.currentNode = {}
+          }
+          if (this.checkedNodes.filter(_item => _item.key === item.key).length) {
+            this.checkedNodes = this.checkedNodes.filter(_item => _item.key !== item.key)
+          }
+          if (this.halfCheckedNodes.filter(_item => _item.key === item.key).length) {
+            this.halfCheckedNodes = this.halfCheckedNodes.filter(_item => _item.key !== item.key)
+          }
+          this.removeChildren(item)
+        }
+      }
+      node.children = []
     }
   }
 }
@@ -606,14 +842,13 @@ export default {
 .dl-tree {
   position: relative;
 }
+.empty-tree__text {
+  text-align: center;
+}
 .dl-tree-node {
-  /* position: relative; */
   cursor: pointer;
   background: #fff;
   white-space: nowrap;
-  /* height: 26px;
-  overflow: hidden;
-  transition: all .3s ease-in-out */
 }
 .dl-tree-children {
   overflow: hidden;
@@ -622,7 +857,4 @@ export default {
 .dl-tree-children__show {
   height: 52px;
 }
-/* .dl-tree-children__hidden {
-  display: none;
-} */
 </style>

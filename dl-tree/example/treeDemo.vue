@@ -15,38 +15,55 @@
       <el-button size='small' type='primary' @click='setCheckedKeys'>setCheckedKeys</el-button>
       <el-button size='small' type='primary' @click='setChecked'>setChecked</el-button>
     </div>
-    <div>
+    <div  class="btn_box">
       <el-button size='small' type='warning' @click='remove'>remove</el-button>
       <el-button size='small' type='warning' @click='append'>append</el-button>
       <el-button size='small' type='warning' @click='insertBefore'>insertBefore</el-button>
       <el-button size='small' type='warning' @click='insertAfter'>insertAfter</el-button>
+      <el-button size='small' type='warning' @click='updateKeyChildren'>updateKeyChildren</el-button>
     </div>
 
     <dl-tree 
+      :empty-text="'暂无数据~'"
       ref="dlTree"
       :indent="18"
       :data="data"
       node-key="id" 
       :lazy="false"
       :load="loadNode"
+      :draggable="true"
+      :allow-drop="allowDrop"
+      :allow-drag="allowDrag"
       :render-after-expand="false"
       :props="defaultProps" 
       :default-expand-all="false"
       :accordion="true"
+      :current-node-key="4"
       :default-expanded-keys="[]"
-      :expand-on-click-node="false"
+      :expand-on-click-node="true"
       :highlight-current="true"
       :show-checkbox="true"
+      :check-on-click-node="false"
       :auto-checked="false"
+      :single-checked="true"
       :auto-expand-parent="true"
       :filter-node-method="filterNode"
-      :render-content="renderContent"
       @node-click="handleNodeClick"
       @check-change="checkChange"
       @check="check"
+      @node-contextmenu="nodeContextmenu"
+      @current-change="currentChange"
       @node-expand="nodeExpand"
-      @node-collapse="nodeCollapse">
-      <!-- <span class="custom-tree-node" slot-scope="{ node, data }">
+      @node-collapse="nodeCollapse"
+      @node-drag-start="handleDragStart"
+      @node-drag-enter="handleDragEnter"
+      @node-drag-leave="handleDragLeave"
+      @node-drag-over="handleDragOver"
+      @node-drag-end="handleDragEnd"
+      @node-drop="handleDrop">
+     
+<!-- 
+      <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ data.label }}</span>
         <span>
           <el-button
@@ -64,15 +81,6 @@
         </span>
       </span> -->
     </dl-tree>
-
-    <!-- <el-tree
-      ref="tree"
-      :indent="100"
-      :props="defaultProps"
-      :load="loadNode"
-      lazy
-      show-checkbox>
-    </el-tree> -->
   </div>
 </template>
 
@@ -84,11 +92,12 @@ export default {
   },
   data() {
     return {
+      flag: true,
       filterText: '',
       data: [
         {
           id: 1,
-          label: '一级 1',
+          label: '',
           children: [
             {
               id: 2,
@@ -99,22 +108,6 @@ export default {
                   label: '三级 1-1-1'
                 }
               ]
-            }
-          ]
-        }, 
-        {
-          id: 4,
-          label: '一级 2',
-          children: [
-              {
-                id: 5,
-                label: '二级 2-1',
-                children: [
-                  {
-                    id: 6,
-                    label: '三级 2-1-1'
-                }
-              ]
             }, 
             {
               id: 7,
@@ -123,6 +116,22 @@ export default {
                 {
                   id: 8,
                   label: '三级 2-2-1'
+                }
+              ]
+            }
+          ]
+        }, 
+        {
+          id: 4,
+          label: '',
+          children: [
+            {
+              id: 5,
+              label: '二级 2-1',
+              children: [
+                {
+                  id: 6,
+                  label: '三级 2-1-1'
                 }
               ]
             }
@@ -207,7 +216,10 @@ export default {
       ],
       defaultProps: {
         children: 'children',
-        label: 'label',
+        label(data, node) {
+          if(!data.label) return '1234897'
+          return data.label
+        },
         disabled: 'disabled'
       },
       node: undefined,
@@ -226,6 +238,7 @@ export default {
   created() {
     this.map.set({a: 1}, 1234)
     this.map.set(this.a, 1234)
+    console.log(window.console)
   },
   methods: {
     getCheckedKeys() {
@@ -265,6 +278,18 @@ export default {
       this.$refs.dlTree.remove(0)
       // (data) 要删除的节点的 data 或者 key
     },
+    updateKeyChildren() {
+      this.$refs.dlTree.updateKeyChildren(1, [      
+        {
+          id: 2,
+          label: '1263'
+        }, 
+        {
+          id: 7,
+          label: '45668'
+        }
+      ])
+    },
     append() {
       this.$refs.dlTree.append({
         id: 0,
@@ -286,9 +311,15 @@ export default {
       }, 1)
       // (data, refNode) 接收两个参数，1. 要增加的节点的 data 2. 要增加的节点的前一个节点的 data、key 或者 node
     },
+    nodeContextmenu(e, data, node) {
+      console.log(e, data, node)
+    },
     handleNodeClick(node, data, key){
       console.log(node, data, key)
       // 共三个参数，依次为：传递给 data 属性的数组中该节点所对应的对象、节点对应的 Node、节点组件本身
+    },
+    currentChange(data, node) {
+      console.log(data, node)
     },
     checkChange(data, checked, childChecked) {
       console.log(data, checked, childChecked)
@@ -342,6 +373,41 @@ export default {
             <el-button size="mini" type="text" on-click={ () => this.remove(data, node) }>Delete</el-button>
           </span>
         </span>);
+    },
+    handleDragStart(node, ev) {
+      console.log('drag start', node, ev);
+    },
+    handleDragEnter(draggingNode, dropNode, ev) {
+      // console.log('tree drag enter: ', dropNode.data.label);
+    },
+    handleDragLeave(draggingNode, dropNode, ev) {
+      // console.log('tree drag leave: ', dropNode.data.label);
+    },
+    handleDragOver(draggingNode, dropNode, ev) {
+      // if (this.flag) {
+      //   console.log('tree drag over: ', dropNode.data.label);
+      //   this.flag = false
+      //   setTimeout(() => {
+      //     this.flag = true
+      //   }, 1000)
+      // }
+    },
+    handleDragEnd(draggingNode, dropNode, dropType, ev) {
+      // console.log('tree drag end: ', dropNode && dropNode.data.label, dropType);
+    },
+    handleDrop(draggingNode, dropNode, dropType, ev) {
+      // console.log('tree drop: ', dropNode.data.label, dropType);
+    },
+    allowDrop(draggingNode, dropNode, type) {
+      if (dropNode.data.label === '二级 2-1') {
+  
+        return type !== 'inner';
+        // return false;
+      }
+      return true
+    },
+    allowDrag(draggingNode) { // 三级 2-1-1  二级 2-1
+      return draggingNode.data.label.indexOf('三级 2-1-1') === -1;
     }
   }
 }
@@ -349,6 +415,7 @@ export default {
 
 <style scoped>
 .page_container {
+  position: relative;
   padding-left: 200px;
 }
 .btn_box {

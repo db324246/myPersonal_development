@@ -1,26 +1,4 @@
 <script>
-// <template>
-//   <div :key="dnode.key" :class="nodeClass" :style="{'padding-left': nodePaddingLeft}" @click="treeNodeClick" :draggable="$parent.draggable && $parent.allowDrag(dnode)">
-//     <span 
-//       v-if="!dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload" 
-//       class="dl-tree-item__expand-icon" 
-//       :style="{'transform': value ? 'rotate(90deg)' : 'rotate(0)'}"
-//       @click.stop="expandNode">
-//     </span>
-//     <div class="dl-tree-item__label" :style="{'margin-left': !dnode.isleaf && dnode.children.length || $parent.lazy && dnode.lazyload ? '0' : '26px'}">
-//       <dl-checkbox 
-//         v-if="$parent.showCheckbox" 
-//         v-model="dnode.checked" 
-//         :params-data="dnode"
-//         :disabled="dnode.disabled">
-//       </dl-checkbox>
-//       <dl-loading v-model="dnode.loading" :load-key="dnode.key"></dl-loading>
-//       <slot :node="dnode" :data="dnode.data">
-//       </slot>
-//     </div>
-//   </div>
-// </template>
-
 import dlCheckbox from './dl-checkbox'
 import dlLoading from './dl-loading'
 export default {
@@ -96,7 +74,10 @@ export default {
           this.$parent.halfCheckedNodes = this.$parent.halfCheckedNodes.filter(item => item.key !== this.dnode.key)
         }
 
-        if (!this.$parent.autoChecked) return
+        if (this.$parent.singleChecked && val === 'true') {
+          return this.singleCheckedFunc()
+        }
+        if (!this.$parent.checkStrictly) return
         
         const chilLen = this.dnode.children.length
         const parChilLen = this.dnode.parent.children.length
@@ -128,26 +109,26 @@ export default {
         {
           class: 'dl-tree-item__label',
           style: {
-            'margin-left': !this.dnode.isleaf && this.dnode.children.length || this.$parent.lazy && this.dnode.lazyload ? '0' : '26px'
+            // 'margin-left': !this.dnode.isleaf && this.dnode.children.length || this.$parent.lazy && this.dnode.lazyload ? '0' : '26px'
           }
         },
         this.renderLabelChild(h)
       )
     ]
-    if (!this.dnode.isleaf && this.dnode.children.length || this.$parent.lazy && this.dnode.lazyload) {
-      childrenNodes.unshift(h(
-        'span',
-        {
-          class: 'dl-tree-item__expand-icon',
-          style: {
-            'transform': this.value ? 'rotate(90deg)' : 'rotate(0)'
-          },
-          on: {
-            click: this.expandNode
-          }
+    const visibile = !this.dnode.isleaf && this.dnode.children.length || !this.dnode.isleaf && this.$parent.lazy && this.dnode.lazyload ? 'visible' : 'hidden'
+    childrenNodes.unshift(h(
+      'span',
+      {
+        class: 'dl-tree-item__expand-icon',
+        style: {
+          'visibility': visibile,
+          'transform': this.value ? 'rotate(90deg)' : 'rotate(0)'
+        },
+        on: {
+          click: this.expandNode,
         }
-      ))
-    }
+      }
+    ))
     return h(
       'div',
       {
@@ -159,16 +140,22 @@ export default {
           key: this.dnode.key
         },
         on: {
-          click: this.treeNodeClick
+          click: this.treeNodeClick,
+          contextmenu: this.handlerContextmenu
         }
       },
       childrenNodes
     )
   },
   methods: {
-    treeNodeClick() {
+    treeNodeClick(e) {
       this.$parent.nodeClick(this.dnode)
-      if (this.$parent.expandOnClickNode) this.expandNode()
+      if (this.$parent.expandOnClickNode) this.expandNode(e)
+      if (this.$parent.showCheckbox && this.$parent.checkOnClickNode) this.$refs.checkbox.handlerClick()
+    },
+    handlerContextmenu(e) {
+      this.$parent.$emit('node-contextmenu', e, this.dnode.data, this.dnode)
+      e.preventDefault();
     },
     expandNode(e) {
       e.stopPropagation()
@@ -180,7 +167,20 @@ export default {
       if (!node.parent.expanded) node.parent.expanded = true
       this.autoExpandParent(node.parent)
     },
+    singleCheckedFunc() {
+      const len = this.$parent.checkedNodes.length
+      for (let i = 0; i < len; i++) {
+        if (this.$parent.checkedNodes[i].key !== this.dnode.key) {
+          this.$parent.checkedNodes[i].checked = 'false'
+        }
+      }
+      this.$parent.checkedNodes = this.$parent.checkedNodes.filter(item => item.key === this.dnode.key)
+    },
     renderLabelChild(h) {
+      const node = this.$scopedSlots.default({
+        node: this.dnode,
+        data: this.dnode.data
+      })
       const children = [
         h(
           'dl-loading',
@@ -196,27 +196,27 @@ export default {
           {
             class: 'dl-tree-item__label__container'
           },
-          this.$scopedSlots.default({
-            node: this.dnode,
-            data: this.dnode.data
-          })
+          node
         )
       ]
-      if (this.$parent.showCheckbox) children.unshift(h(
-        'dl-checkbox',
-        {
-          props: {
-            'value': this.dnode.checked,
-            'params-data': this.dnode,
-            'disabled': this.dnode.disabled
-          },
-          on: {
-            input: (val) => {
-              this.dnode.checked = val
+      if (this.$parent.showCheckbox && this.dnode.hasChecked === 'true') {
+        children.unshift(h(
+          'dl-checkbox',
+          {
+            ref: 'checkbox',
+            props: {
+              'value': this.dnode.checked,
+              'params-data': this.dnode,
+              'disabled': this.dnode.disabled
+            },
+            on: {
+              input: (val) => {
+                this.dnode.checked = val
+              }
             }
           }
-        }
-      ))
+        ))
+      }
       return children
     }
   }
@@ -239,7 +239,6 @@ export default {
   background-color: #ebfafa;
 }
 .dl-tree-item__label {
-  /* position: relative; */
   flex: 1;
   display: flex;
   align-items: center;
@@ -269,6 +268,7 @@ export default {
   border-left-color: #c0c4cc;
   border-right-color: transparent;
   border-bottom-color: transparent;
+  box-sizing: border-box;
 }
 .dl-tree-item__label__container {
   flex: 1;
