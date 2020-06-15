@@ -28,7 +28,8 @@ export default {
   },
   data() {
     return {
-
+      ddata: {},
+      childrenLen: 0
     }
   },
   computed: {
@@ -101,6 +102,8 @@ export default {
     }
   },
   created() {
+    this.ddata = this.dnode.data
+    this.childrenLen = this.ddata[this.$parent.props.children] && this.ddata[this.$parent.props.children].length || 0
   },
   render(h) {
     const childrenNodes = [
@@ -115,7 +118,7 @@ export default {
         this.renderLabelChild(h)
       )
     ]
-    const visibile = !this.dnode.isleaf && this.dnode.children.length || !this.dnode.isleaf && this.$parent.lazy && this.dnode.lazyload ? 'visible' : 'hidden'
+    const visibile = !this.dnode.isleaf && this.dnode.children.length || !this.dnode.isleaf && this.$parent.lazy && this.dnode.lazyload || !this.dnode.isleaf && this.$parent.renderAfterExpand && this.dnode.lazyload && this.childrenLen ? 'visible' : 'hidden'
     childrenNodes.unshift(h(
       'span',
       {

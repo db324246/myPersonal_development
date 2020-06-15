@@ -41,6 +41,10 @@ export default {
     },
     renderAfterExpand: {
       type: Boolean,
+      default: true
+    },
+    renderEveryExpand: {
+      type: Boolean,
       default: false
     },
     load: {
@@ -162,6 +166,7 @@ export default {
         data: null,
         parent: null
       },
+      dataRecordsByKey: new Map(), // key记录所有的data数据
       nodeRecordsByKey: new Map(), // key记录所有节点
       nodeRecordsByData: new Map(), // data记录所有节点
       currentKey: '',
@@ -189,7 +194,12 @@ export default {
         this.loadResolve(data, parentNode)
       })
     } else if (this.data.length) {
-      this.recursionNodeData(this.data, this.nodeData.children, this.nodeData.level, this.nodeData)
+      if (this.renderAfterExpand) {
+        const parentNode = this.nodeData
+        this.loadResolve(this.data, parentNode)
+      } else {
+        this.recursionNodeData(this.data, this.nodeData.children, this.nodeData.level, this.nodeData)
+      }
     }
   },
   render(h) {
@@ -264,10 +274,11 @@ export default {
       return node
     },
     loadResolve(data, parentNode, cb) {
+      if (!data) return
       const len = data.length
       if (len) {
         const level = parentNode.level + 1
-        if (this.renderAfterExpand) parentNode.children = []
+        if (this.renderEveryExpand) parentNode.children = []
         for (let i = 0; i < len; i++) {
           if (i === 0) {
             if (this.nodeKey && data[i][this.nodeKey]) this.keyFlag = true
@@ -277,6 +288,7 @@ export default {
           const expanded = this.defaultExpandedKeys.includes(key)
           this.countKey++
           const node = this.newNode(data[i], parentNode, level, key, expanded)
+          this.dataRecordsByKey.set(key, data[i])
           this.nodeRecordsByKey.set(key, node)
           this.nodeRecordsByData.set(data[i], node)
           parentNode.children.push(node)
@@ -293,7 +305,7 @@ export default {
       } else {
         parentNode.children = []
       }
-      if (!this.renderAfterExpand) parentNode.lazyload = false
+      if (!this.renderEveryExpand) parentNode.lazyload = false
       cb && cb()
       parentNode.loading = false
       parentNode.expanded = true
@@ -313,6 +325,7 @@ export default {
 
         const node = this.newNode(arr1[i], parent, level, key, expanded)
         arr2.push(node)
+        this.dataRecordsByKey.set(key, arr1[i])
         this.nodeRecordsByKey.set(key, node)
         this.nodeRecordsByData.set(arr1[i], node)
         if (arr1[i][this.props.children] && arr1[i][this.props.children].length) {
@@ -461,7 +474,7 @@ export default {
       return floorCount * 26 + 'px'
     },
     expandedFunc(expanded, node) {
-      if (this.lazy) {
+      if (this.lazy || this.renderAfterExpand) {
         this.expandload(node, expanded)
         return
       }
@@ -479,8 +492,24 @@ export default {
           }
         }
       }
-      if (expanded && !this.renderAfterExpand) {
+      if (expanded && !this.renderEveryExpand) {
         if (!node.children.length && !node.isleaf && node.lazyload) {
+          if (this.renderAfterExpand) {
+            const datas = this.dataRecordsByKey.get(node.key)
+            return this.loadResolve(datas[this.props.children], node)
+          }
+          else return new Promise(resolve => {
+            node.loading = true
+            this.load && this.load(node, resolve)
+          }).then(data => {
+            this.loadResolve(data, node)
+          })
+        }
+      } else if (expanded && this.renderEveryExpand) {
+        if (this.renderAfterExpand) {
+          const datas = this.dataRecordsByKey.get(node.key)
+          return this.loadResolve(datas[this.props.children], node)
+        } else {
           return new Promise(resolve => {
             node.loading = true
             this.load && this.load(node, resolve)
@@ -488,13 +517,6 @@ export default {
             this.loadResolve(data, node)
           })
         }
-      } else if (expanded && this.renderAfterExpand) {
-        return new Promise(resolve => {
-          node.loading = true
-          this.load && this.load(node, resolve)
-        }).then(data => {
-          this.loadResolve(data, node)
-        })
       }
       node.expanded = expanded
       this.$emit('node-collapse', node.data, node)
@@ -553,7 +575,8 @@ export default {
         const expanded = this.defaultExpandedKeys.includes(key)
         this.countKey++
         const _node = this.newNode(data[i], node, level, key, expanded)
-
+        
+        this.dataRecordsByKey.set(key, data[i])
         this.nodeRecordsByKey.set(key, _node)
         this.nodeRecordsByData.set(data[i], _node)
         node.children.push(_node)
@@ -651,15 +674,25 @@ export default {
         new Promise(resolve => {
           _parent.loading = true
           this.load && this.load(_parent, resolve)
-        }).then(data => {
-          this.loadResolve(data, _parent, () => {
+        }).then(_data => {
+          this.loadResolve(_data, _parent, () => {
+            this.dataRecordsByKey.set(key, data)
             this.nodeRecordsByKey.set(key, node)
             this.nodeRecordsByData.set(data, node)
             _parent.children.push(node)
           })
         })
+      } else if (!_parent.expanded && this.renderAfterExpand && _parent.lazyload) {
+        const datas = this.dataRecordsByKey.get(_parent.key)
+        this.loadResolve(datas[this.props.children], _parent, () => {
+          this.dataRecordsByKey.set(key, data)
+          this.nodeRecordsByKey.set(key, node)
+          this.nodeRecordsByData.set(data, node)
+          _parent.children.push(node)
+        })
       } else {
         _parent.expanded = true
+        this.dataRecordsByKey.set(key, data)
         this.nodeRecordsByKey.set(key, node)
         this.nodeRecordsByData.set(data, node)
         _parent.children.push(node)
@@ -687,13 +720,22 @@ export default {
           this.load && this.load(_parent, resolve)
         }).then(_data => {
           _data.unshift(data)
+          this.dataRecordsByKey.set(key, data)
           this.nodeRecordsByKey.set(key, node)
           this.nodeRecordsByData.set(data, node)
           this.loadResolve(_data, _parent)
         })
+      } else if (!_parent.expanded && this.renderAfterExpand && _parent.lazyload) {
+        const datas = this.dataRecordsByKey.get(_parent.key)[this.props.children]
+        datas.unshift(data)
+        this.dataRecordsByKey.set(key, data)
+        this.nodeRecordsByKey.set(key, node)
+        this.nodeRecordsByData.set(data, node)
+        this.loadResolve(datas, _parent)
       } else {
 
         _parent.expanded = true
+        this.dataRecordsByKey.set(key, data)
         this.nodeRecordsByKey.set(key, node)
         this.nodeRecordsByData.set(data, node)
         _parent.children.unshift(node)
@@ -813,6 +855,9 @@ export default {
           const item = node.children[i]
           if (this.nodeRecordsByKey.has(item.key)) {
             this.nodeRecordsByKey.delete(item.key)
+          }
+          if (this.dataRecordsByKey.has(item.key)) {
+            this.dataRecordsByKey.delete(item.key)
           }
           if (this.nodeRecordsByData.has(item.data)) {
             this.nodeRecordsByData.delete(item.data)

@@ -34,7 +34,8 @@
       :draggable="true"
       :allow-drop="allowDrop"
       :allow-drag="allowDrag"
-      :render-after-expand="false"
+      :render-after-expand="true"
+      :render-every-expand="false"
       :props="defaultProps" 
       :default-expand-all="false"
       :accordion="true"
@@ -85,7 +86,7 @@
 </template>
 
 <script>
-import DlTree from './dl-tree'
+import DlTree from 'dl-tree'
 export default {
   components: {
     DlTree
