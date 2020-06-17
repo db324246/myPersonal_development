@@ -1,8 +1,13 @@
 {
   "name": "dl-tree",
   "description": "dl-tree 树形控件 用清晰的层级结构展示信息，可展开或折叠",
-  "version": "1.0.3",
+  "version": "1.0.7",
   "author": "daixiaobin",
+  "keywords": [
+    "vue",
+    "tree",
+    "element-UI"
+  ],
   "license": "MIT",
   "private": false,
   "main": "dist/dlTree.js",

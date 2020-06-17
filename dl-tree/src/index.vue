@@ -264,7 +264,7 @@ export default {
         parent: parentNode
       }
       
-      node.disabled = disabled || typeof this.props.disabled === 'function' ? this.props.disabled(data, node) : data[this.props.disabled] || false
+      node.disabled = disabled || (typeof this.props.disabled === 'function' ? this.props.disabled(data, node) : data[this.props.disabled]) || false
       node.isleaf = typeof this.props.isleaf === 'function' ? this.props.isleaf(data, node) : data[this.props.isleaf] || false
 
       if (this.currentKey && this.currentKey === key) {
@@ -494,7 +494,7 @@ export default {
       }
       if (expanded && !this.renderEveryExpand) {
         if (!node.children.length && !node.isleaf && node.lazyload) {
-          if (this.renderAfterExpand) {
+          if (!this.lazy && this.renderAfterExpand) {
             const datas = this.dataRecordsByKey.get(node.key)
             return this.loadResolve(datas[this.props.children], node)
           }
@@ -506,7 +506,7 @@ export default {
           })
         }
       } else if (expanded && this.renderEveryExpand) {
-        if (this.renderAfterExpand) {
+        if (!this.lazy && this.renderAfterExpand) {
           const datas = this.dataRecordsByKey.get(node.key)
           return this.loadResolve(datas[this.props.children], node)
         } else {
@@ -556,11 +556,35 @@ export default {
       const _key = this.keyFlag ? data[this.nodeKey] : this.countKey
       const disabled = this.showCheckbox && this.defaultDisabledKeys.length && this.defaultDisabledKeys.includes(key) || false
       this.countKey++
+      const expanded = this.defaultExpandedKeys.includes(key)
+      this.dataRecordsByKey.delete(key)
+      this.nodeRecordsByKey.delete(key)
+      this.nodeRecordsByData.delete(node.data)
+
       node.data = data
       node.key = _key
       node.id = _key
+      node.expanded = expanded
       node.isleaf = typeof this.props.isleaf === 'function' ? this.props.isleaf(data, node) : data[this.props.isleaf] || false
       node.disabled = disabled || typeof this.props.disabled === 'function' ? this.props.disabled(data, node) : data[this.props.disabled] || false
+
+      if (this.draggingNode.key) {
+        this.draggingNode = {}
+      }
+      if (this.currentNode.key === key) {
+        this.currentNode = node
+      }
+      if (this.checkedNodes.filter(_item => _item.key === key).length) {
+        this.checkedNodes = this.checkedNodes.filter(_item => _item.key !== key)
+        this.checkedNodes.push(node)
+      }
+      if (this.halfCheckedNodes.filter(_item => _item.key === key).length) {
+        this.halfCheckedNodes = this.halfCheckedNodes.filter(_item => _item.key !== key)
+        this.halfCheckedNodes.push(node)
+      }
+      this.dataRecordsByKey.set(_key, data)
+      this.nodeRecordsByKey.set(_key, node)
+      this.nodeRecordsByData.set(data, node)
     },
     updateKeyChildren(key, data) {
       if (!key) return new Error('key is a required parameter ')
@@ -653,6 +677,28 @@ export default {
         node = this.nodeRecordsByKey.get(key)
       }
       node.parent.children = node.parent.children.filter(item => item.key !== key)
+      if (this.nodeRecordsByKey.has(key)) {
+        this.nodeRecordsByKey.delete(key)
+      }
+      if (this.dataRecordsByKey.has(key)) {
+        this.dataRecordsByKey.delete(key)
+      }
+      if (this.nodeRecordsByData.has(node.data)) {
+        this.nodeRecordsByData.delete(node.data)
+      }
+      if (this.draggingNode.key === key) {
+        this.draggingNode = {}
+      }
+      if (this.currentNode.key === key) {
+        this.currentNode = {}
+      }
+      if (this.checkedNodes.filter(_item => _item.key === key).length) {
+        this.checkedNodes = this.checkedNodes.filter(_item => _item.key !== key)
+      }
+      if (this.halfCheckedNodes.filter(_item => _item.key === key).length) {
+        this.halfCheckedNodes = this.halfCheckedNodes.filter(_item => _item.key !== key)
+      }
+      this.removeChildren(node)
     },
     append(data, parentNode) {
       let _parent = {}
