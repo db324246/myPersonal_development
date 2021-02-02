@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  
+</body>
+<script>
+  var urls = [
+  'http://jsonplaceholder.typicode.com/posts/1',
+  'http://jsonplaceholder.typicode.com/posts/2', 
+  'http://jsonplaceholder.typicode.com/posts/3', 
+  'http://jsonplaceholder.typicode.com/posts/4',
+  'http://jsonplaceholder.typicode.com/posts/5', 
+  'http://jsonplaceholder.typicode.com/posts/6', 
+  'http://jsonplaceholder.typicode.com/posts/7', 
+  'http://jsonplaceholder.typicode.com/posts/8',
+  'http://jsonplaceholder.typicode.com/posts/9', 
+  'http://jsonplaceholder.typicode.com/posts/10'
+]
+
+    function getRandomInt(min,max){
+				return Math.floor(Math.random()*(max-min+1))+min;
+			}
+
+  function loadDate (url) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.onload = function () {
+        setTimeout(() => {
+          console.log(`当前请求量${count--}`)
+          console.log(url)
+          resolve(xhr.responseText)
+        }, getRandomInt(1, 5) * 1000)
+      }
+      xhr.open('GET', url)
+      xhr.send()
+    })
+  }
+
+  function requestLimit(arr, limit, asyncHandle) {
+    let _limit = limit;
+    const _arr = arr.slice();
+    let requestQueue = [];
+
+    while (_limit--) {
+      requestQueue.push(aysncFunc())
+    }
+    function aysncFunc() {
+      return asyncHandle(_arr.shift())
+        .then(res => {
+          if (_arr.length) return aysncFunc()
+          else return '请求结束' 
+        })
+        .catch(err => {
+          return err 
+        })
+    }
+
+    return Promise.all(requestQueue)
+  }
+
+  let count = 0
+
+  requestLimit(urls, 3, (url, data) => {
+    count++
+    return loadDate(url)
+  }).then(res => {
+    console.log(res)
+  })
+</script>
+</html>

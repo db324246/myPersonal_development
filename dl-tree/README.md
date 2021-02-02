@@ -52,10 +52,11 @@
 | 21 | filter-node-method | 对树节点进行筛选时执行的方法，返回 true 表示这个节点可以显示，返回 false 则表示这个节点会被隐藏 | Function(value, data, node) | -- | -- |
 | 22 | accordion | 是否每次只打开一个同级树节点展开 | boolean | -- | false |
 | 23 | indent | 相邻级节点间的水平缩进，单位为像素 | number | -- | 16 |
-| 24 | lazy | 是否懒加载子节点，需与 load 方法结合使用 | string, boolean | -- | false |
-| 25 | draggable | 是否开启拖拽节点功能 | boolean | -- | false |
-| 26 | allow-drag | 判断节点能否被拖拽 | function(node) | -- | -- |
-| 27 | allow-drop | 拖拽时判定目标节点能否被放置。type 参数有三种情况：'prev'、'inner' 和 'next'，分别表示放置在目标节点前、插入至目标节点和放置在目标节点后 | function(draggingNode, dropNode, type) | -- | -- |
+| 24 | height | 节点的高度，单位为像素 | number | -- | 26 |
+| 25 | lazy | 是否懒加载子节点，需与 load 方法结合使用 | string, boolean | -- | false |
+| 26 | draggable | 是否开启拖拽节点功能 | boolean | -- | false |
+| 27 | allow-drag | 判断节点能否被拖拽 | function(node) | -- | -- |
+| 28 | allow-drop | 拖拽时判定目标节点能否被放置。type 参数有三种情况：'prev'、'inner' 和 'next'，分别表示放置在目标节点前、插入至目标节点和放置在目标节点后 | function(draggingNode, dropNode, type) | -- | -- |
 
 
 
@@ -118,3 +119,8 @@ Tree 内部使用了 Node 类型的对象来包装用户传入的数据，用�
 ### 附文
 
 组件使用中出现bug，或者想要与作者一起学习交流，欢迎添加我的微信：waitme1995
+
+### 更新日志
+| 版本号 | 时间 | 说明 |
+| --- | --- | --- |
+| 1.0.8 | 2020.06.22 | 新增height属性 |

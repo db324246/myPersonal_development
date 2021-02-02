@@ -121,6 +121,10 @@ export default {
       type: Number,
       default: 16
     },
+    height: {
+      type: Number,
+      default: 26
+    },
     lazy: {
       type: Boolean,
       default: false
@@ -424,10 +428,13 @@ export default {
                       else {
                         const droppedon = arr1[i].droppedon
                         return h(
-                          'span',
+                          'div',
                           {
                             class: 'dl-tree-item__label__content',
                             style: {
+                              'text-overflow': 'ellipsis',
+                              'overflow': 'hidden',
+                              'white-space': 'nowrap',
                               'box-sizing': 'border-box',
                               'background-color': droppedon ? '#409eff' : 'transparent',
                               'color': droppedon ? '#fff' : '#606266'
@@ -471,7 +478,7 @@ export default {
         return floors
       }
       floorCount = recursionFloors(floorCount, node)
-      return floorCount * 26 + 'px'
+      return floorCount * this.height + 'px'
     },
     expandedFunc(expanded, node) {
       if (this.lazy || this.renderAfterExpand) {
@@ -605,6 +612,7 @@ export default {
         this.nodeRecordsByData.set(data[i], _node)
         node.children.push(_node)
       }
+      node.lazyload = false
     },
     getCheckedNodes(leafOnly = false, includeHalfChecked = false) {
       let result = []
@@ -634,15 +642,6 @@ export default {
         const node = this.nodeRecordsByKey.get(keys[i])
         node.checked = 'true'
       }
-    },
-    setChecked(key, checked) {
-      if (!key) return new Error('key is a required parameter ')
-
-      let node = {}
-      if (typeof key === 'object') node = this.nodeRecordsByData.get(key)
-      else node = this.nodeRecordsByKey.get(key)
-
-      node.checked = checked ? 'true' : 'false'
     },
     getHalfCheckedNodes() {
       return this.halfCheckedNodes.map(item => item.data)

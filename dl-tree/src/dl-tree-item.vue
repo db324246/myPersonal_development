@@ -137,6 +137,7 @@ export default {
       {
         class: this.nodeClass,
         style: {
+          'height': this.$parent.height + 'px',
           'padding-left': this.nodePaddingLeft
         },
         attrs: {
@@ -230,7 +231,6 @@ export default {
 .dl-tree-item {
   display: flex;
   align-items: center;
-  height: 26px;
 }
 .dl-tree-item:hover {
   background-color: #f5f7fa;
@@ -245,6 +245,7 @@ export default {
   flex: 1;
   display: flex;
   align-items: center;
+  min-width: 0;
   height: 26px;
   font-size: 14px;
   color: #606266;
@@ -255,7 +256,7 @@ export default {
   align-items: center;
   justify-content: center;
   height: 26px;
-  width: 26px;
+  min-width: 26px;
   padding-left: 8px;
   overflow: hidden;
   transition: transform .3s ease-in-out
@@ -276,6 +277,7 @@ export default {
 .dl-tree-item__label__container {
   flex: 1;
   height: 26px;
+  min-width: 0;
   line-height: 26px;
 }
 </style>
